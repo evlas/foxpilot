@@ -86,6 +86,7 @@ void *pilota_loop(void *ptr) {
 		//calc_bearing_error(&sensori);
 
 		update_system_statemachine();
+		printf("Stato %d Mode %d Nav %d\n", get_sys_state_status(), get_sys_state_mode(), get_sys_state_nav_mode());
 
 		switch(pilota_data.groundcontrol.state.nav_mode){
 		case MAV_MODE_UNINIT:     ///< System is in undefined state
