@@ -229,79 +229,116 @@ int handle_message(uint8_t *buf, int dim) {
 					break;
 				case MAV_ACTION_MOTORS_START:
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
-							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
+							(get_sys_state_status() == MAV_STATE_STANDBY) &&
 							(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_ACTIVE);
-						set_sys_state_nav_mode(MAV_NAV_GROUNDED);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_ACTIVE)) {
+							if (get_sys_state_mode() == MAV_MODE_MANUAL) {
+								set_sys_state_nav_mode(MAV_NAV_FREE_DRIFT);
+							} else {
+								set_sys_state_nav_mode(MAV_NAV_GROUNDED);
+							}
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "MOTORS_START Impossibile", 24);
+						}
 					}
 					break;
 				case MAV_ACTION_LAUNCH:
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
-							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
+							(get_sys_state_status() == MAV_STATE_ACTIVE) &&
 							(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_ACTIVE);
-						set_sys_state_nav_mode(MAV_NAV_LIFTOFF);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_ACTIVE)) {
+							set_sys_state_nav_mode(MAV_NAV_LIFTOFF);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "LAUNCH Impossibile", 18);
+						}
 					}
 					break;
 				case MAV_ACTION_RETURN:
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
 							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
 							(get_sys_state_nav_mode() > MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_ACTIVE);
-						set_sys_state_nav_mode(MAV_NAV_RETURNING);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_ACTIVE)) {
+							set_sys_state_nav_mode(MAV_NAV_RETURNING);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "RETURN Impossibile", 18);
+						}
 					}
 					break;
 				case MAV_ACTION_EMCY_LAND:
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
 							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
 							(get_sys_state_nav_mode() > MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_EMERGENCY);
-						set_sys_state_nav_mode(MAV_NAV_LANDING);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_EMERGENCY)) {
+							set_sys_state_nav_mode(MAV_NAV_LANDING);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "EMCY_LAND Impossibile", 21);
+						}
 					}
 					break;
 				case MAV_ACTION_EMCY_KILL:
 					if ((get_sys_state_mode() == MAV_MODE_LOCKED) &&
 							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
 							(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_EMERGENCY);
-						set_sys_state_nav_mode(MAV_NAV_GROUNDED);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_EMERGENCY)) {
+							set_sys_state_nav_mode(MAV_NAV_GROUNDED);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "EMCY_KILL Impossibile", 21);
+						}
 					}
 					break;
 				case MAV_ACTION_CONFIRM_KILL:
 					if (get_sys_state_nav_mode() == MAV_NAV_GROUNDED) {
-						set_sys_state_status(MAV_STATE_POWEROFF);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "CONFIRM_KILL Impossibile", 24);
+						}
 					}
 					break;
 				case MAV_ACTION_CONTINUE:
 					break;
 				case MAV_ACTION_MOTORS_STOP:
-					if ((get_sys_state_mode() == MAV_MODE_LOCKED) &&
+					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
 							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
-							(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_STANDBY);
-						ok_ko=1;
+							((get_sys_state_nav_mode() == MAV_NAV_GROUNDED) ||
+									(get_sys_state_nav_mode() == MAV_NAV_FREE_DRIFT) ||
+									(get_sys_state_nav_mode() == MAV_NAV_RETURNING))) {
+						if (set_sys_state_status(MAV_STATE_STANDBY)) {
+							set_sys_state_nav_mode(MAV_NAV_GROUNDED);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "MOTORS_STOP Impossibile", 23);
+						}
 					}
 					break;
 				case MAV_ACTION_HALT:
-					set_sys_state_status(MAV_STATE_POWEROFF);
-					ok_ko=1;
+					if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+						ok_ko=1;
+					} else {
+						send_mav_statustext(0, "HALT Impossibile", 16);
+					}
 					break;
 				case MAV_ACTION_SHUTDOWN:
 					if (get_sys_state_nav_mode() == MAV_NAV_GROUNDED) {
-						set_sys_state_status(MAV_STATE_POWEROFF);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "SHUTDOWN Impossibile", 20);
+						}
 					}
 					break;
 				case MAV_ACTION_REBOOT:
 					if (get_sys_state_nav_mode() == MAV_NAV_GROUNDED) {
-						set_sys_state_status(MAV_STATE_POWEROFF);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "REBOOT Impossibile", 18);
+						}
 					}
 					break;
 				case MAV_ACTION_SET_MANUAL:
@@ -357,9 +394,12 @@ int handle_message(uint8_t *buf, int dim) {
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
 							(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
 							(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-						set_sys_state_status(MAV_STATE_ACTIVE);
-						set_sys_state_nav_mode(MAV_NAV_LIFTOFF);
-						ok_ko=1;
+						if (set_sys_state_status(MAV_STATE_ACTIVE)) {
+							set_sys_state_nav_mode(MAV_NAV_LIFTOFF);
+							ok_ko=1;
+						} else {
+							send_mav_statustext(0, "TAKEOFF Impossibile", 19);
+						}
 					}
 					break;
 				case MAV_ACTION_NAVIGATE:
@@ -1783,66 +1823,69 @@ enum MAV_STATE get_sys_state_status(void) {
 }
 /** @brief Set the current system state */
 bool set_sys_state_status(enum MAV_STATE state) {
+	bool res = false;
 	if (state == MAV_STATE_ACTIVE) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if ((groundcontrol_data.state.prevstatus == MAV_STATE_STANDBY) ||
-				(groundcontrol_data.state.prevstatus == MAV_STATE_CRITICAL) ||
-				(groundcontrol_data.state.prevstatus == MAV_STATE_EMERGENCY)) {
+		if ((groundcontrol_data.state.status == MAV_STATE_ACTIVE) ||
+				(groundcontrol_data.state.status == MAV_STATE_STANDBY) ||
+				(groundcontrol_data.state.status == MAV_STATE_CRITICAL) ||
+				(groundcontrol_data.state.status == MAV_STATE_EMERGENCY)) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_ACTIVE;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_BOOT) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if (groundcontrol_data.state.prevstatus == MAV_STATE_UNINIT) {
+		if (groundcontrol_data.state.status == MAV_STATE_UNINIT) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_BOOT;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_CALIBRATING) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if (groundcontrol_data.state.prevstatus == MAV_STATE_STANDBY) {
+		if (groundcontrol_data.state.status == MAV_STATE_STANDBY) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_CALIBRATING;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_CRITICAL) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if (groundcontrol_data.state.prevstatus == MAV_STATE_ACTIVE) {
+		if (groundcontrol_data.state.status == MAV_STATE_ACTIVE) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_CRITICAL;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_EMERGENCY) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if ((groundcontrol_data.state.prevstatus == MAV_STATE_ACTIVE) ||
-				(groundcontrol_data.state.prevstatus == MAV_STATE_CRITICAL)) {
+		if ((groundcontrol_data.state.status == MAV_STATE_ACTIVE) ||
+				(groundcontrol_data.state.status == MAV_STATE_CRITICAL)) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_EMERGENCY;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_POWEROFF) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if (groundcontrol_data.state.prevstatus == MAV_STATE_STANDBY) {
+		if (groundcontrol_data.state.status == MAV_STATE_STANDBY) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_POWEROFF;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} else if (state == MAV_STATE_STANDBY) {
 		pthread_mutex_lock(&groundcontrol_mutex);
-		if ((groundcontrol_data.state.prevstatus == MAV_STATE_BOOT) ||
-				(groundcontrol_data.state.prevstatus == MAV_STATE_CALIBRATING)) {
+		if ((groundcontrol_data.state.status == MAV_STATE_BOOT) ||
+				(groundcontrol_data.state.status == MAV_STATE_CALIBRATING) ||
+				(groundcontrol_data.state.status == MAV_STATE_ACTIVE)) {
 			groundcontrol_data.state.prevstatus = groundcontrol_data.state.status;
 			groundcontrol_data.state.status = MAV_STATE_STANDBY;
+			res = true;
 		}
 		pthread_mutex_unlock(&groundcontrol_mutex);
-		return (true);
 	} /*else if (state == MAV_STATE_UNINIT) {
 		pthread_mutex_lock(&groundcontrol_mutex);
 		groundcontrol_data.state.status = MAV_STATE_BOOT;
@@ -1851,8 +1894,8 @@ bool set_sys_state_status(enum MAV_STATE state) {
 	} */else {
 		// UNINIT or invalid state, ignore value and return false
 		send_mav_statustext(50, "WARNING: Attempted to set invalid state", 39);
-		return (false);
 	}
+	return (res);
 }
 
 uint8_t get_sys_state_position_fix(void){
@@ -1948,10 +1991,13 @@ void update_system_statemachine(void) {
 		set_sys_state_status(MAV_STATE_BOOT);
 	}
 	break;
+	/*
 	case MAV_MODE_LOCKED:
 		set_sys_state_nav_mode(MAV_NAV_GROUNDED);
 		set_sys_state_status(MAV_STATE_STANDBY);
 		break;
+		*/
+
 	case MAV_MODE_MANUAL:
 		//global_data.param[PARAM_MIX_POSITION_WEIGHT] = 0;
 		//global_data.param[PARAM_MIX_POSITION_YAW_WEIGHT] = 0;
@@ -1961,8 +2007,9 @@ void update_system_statemachine(void) {
 		set_sys_state_nav_mode(MAV_NAV_FREE_DRIFT);
 		//set_sys_state_status(MAV_STATE_ACTIVE);
 		break;
+	/*
 	case MAV_MODE_GUIDED: {
-		/*
+
 		if (get_sys_state_position_fix()) {
 			if (get_sys_state_status() == MAV_STATE_CRITICAL) {
 				//get active again if we are in critical
@@ -2012,7 +2059,7 @@ void update_system_statemachine(void) {
 
 		//global_data.param[PARAM_MIX_OFFSET_WEIGHT] = 1;
 		//global_data.param[PARAM_MIX_REMOTE_WEIGHT] = 1;
-	*/
+
 	}
 	break;
 	case MAV_MODE_AUTO:
@@ -2030,6 +2077,7 @@ void update_system_statemachine(void) {
 		break;
 	case MAV_MODE_READY:
 		break;
+		*/
 	default:
 		printf("");
 		//global_data.param[PARAM_MIX_POSITION_WEIGHT] = 0;
