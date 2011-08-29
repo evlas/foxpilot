@@ -76,41 +76,41 @@ void *protocol_loop(void *ptr) {
 
 		// RAW SENSOR DATA
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_RAW_SENSORS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_RAW_SENSORS].rate))) {
-			printf("RAW SENSOR DATA\n");
+			//printf("RAW SENSOR DATA\n");
 			send_mav_attitude();
 		}
 		// EXTENDED SYSTEM STATUS
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_EXTENDED_STATUS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_EXTENDED_STATUS].rate))) {
-			printf("EXTENDED SYSTEM STATUS\n");
+			//printf("EXTENDED SYSTEM STATUS\n");
 			//send_mav_control_status();
 		}
 		// REMOTE CONTROL CHANNELS
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].rate))) {
-			printf("REMOTE CONTROL CHANNELS\n");
+			//printf("REMOTE CONTROL CHANNELS\n");
 			send_mav_rc_channels_raw();
-			send_mav_rc_channels_scaled();
+			//send_mav_rc_channels_scaled();
 			send_mav_servo_output_raw();
 		}
 		// RAW CONTROLLER
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_RAW_CONTROLLER].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_RAW_CONTROLLER].rate))) {
-			printf("RAW CONTROLLER\n");
+			//printf("RAW CONTROLLER\n");
 		}
 		// POSITION
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_POSITION].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_POSITION].rate))) {
-			printf("POSITION\n");
+			//printf("POSITION\n");
 			send_mav_global_position_int();
 		}
 		// EXTRA1
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA1].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA1].rate))) {
-			printf("EXTRA1\n");
+			//printf("EXTRA1\n");
 		}
 		// EXTRA2
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA2].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA2].rate))) {
-			printf("EXTRA2\n");
+			//printf("EXTRA2\n");
 		}
 		// EXTRA3
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA3].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_EXTRA3].rate))) {
-			printf("EXTRA3\n");
+			//printf("EXTRA3\n");
 		}
 
 		//		fp = fopen("/proc/stat", "r");
@@ -220,6 +220,8 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_action_decode(&msg, &action);
 
+			printf("TARGET %d ACTION %d\n",action.target, mavlink_msg_action_get_action(&msg));
+
 			if ((action.target == get_param_value(PARAM_SYSTEM_ID))) {
 				//				&& (action.target_component == get_param_value(PARAM_COMPONENT_ID))) {
 				//mavlink_msg_action_get_target_component(&msg);
@@ -301,6 +303,13 @@ int handle_message(uint8_t *buf, int dim) {
 					}
 					break;
 				case MAV_ACTION_CONTINUE:
+					if (get_sys_state_nav_mode() == MAV_NAV_HOLD) {
+						//hold position
+						set_sys_state_nav_mode_prev();
+						ok_ko=1;
+					} else {
+						send_mav_statustext(0, "CONTINUE Impossibile", 20);
+					}
 					break;
 				case MAV_ACTION_MOTORS_STOP:
 					if ((get_sys_state_mode() > MAV_MODE_LOCKED) &&
@@ -317,7 +326,9 @@ int handle_message(uint8_t *buf, int dim) {
 					}
 					break;
 				case MAV_ACTION_HALT:
-					if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+					if (get_sys_state_nav_mode() > MAV_NAV_GROUNDED) {
+						//hold position
+						set_sys_state_nav_mode(MAV_NAV_HOLD);
 						ok_ko=1;
 					} else {
 						send_mav_statustext(0, "HALT Impossibile", 16);
@@ -407,6 +418,13 @@ int handle_message(uint8_t *buf, int dim) {
 				case MAV_ACTION_LAND:
 					break;
 				case MAV_ACTION_LOITER:
+					if (get_sys_state_nav_mode() > MAV_NAV_GROUNDED) {
+											//hold position
+											set_sys_state_nav_mode(MAV_NAV_LOITER);
+											ok_ko=1;
+										} else {
+											send_mav_statustext(0, "HALT Impossibile", 16);
+										}
 					break;
 				case MAV_ACTION_SET_ORIGIN:
 					// If not flying
@@ -443,7 +461,6 @@ int handle_message(uint8_t *buf, int dim) {
 					printf("ACTION %d\n",mavlink_msg_action_get_action(&msg));
 					break;
 				}
-				printf("ACTION %d\n",mavlink_msg_action_get_action(&msg));
 				send_mav_action_ack(mavlink_msg_action_get_action(&msg), ok_ko);
 			}
 		}
@@ -965,7 +982,7 @@ int send_mav_rc_channels_raw(void) {
 	int len, i;
 	mavlink_message_t msg;
 	uint8_t buf[MAV_BUFFER_LENGTH];
-	int16_t servi_out[8];
+	uint16_t servi_out[8];
 	attuatori_t attuatori_g;
 
 	get_attuatori(&attuatori_g);
@@ -995,6 +1012,7 @@ int send_mav_rc_channels_raw(void) {
 /*
 MAVLINK_MSG_ID_RC_CHANNELS_SCALED 36
  */
+//attenzione sembra non piacere a qgroundstation
 int send_mav_rc_channels_scaled(void) {
 	int len, i;
 	mavlink_message_t msg;
@@ -1033,7 +1051,7 @@ int send_mav_servo_output_raw(void) {
 	int len, i;
 	mavlink_message_t msg;
 	uint8_t buf[MAV_BUFFER_LENGTH];
-	int16_t servi_out[8];
+	uint16_t servi_out[8];
 	attuatori_t attuatori_g;
 
 	get_attuatori(&attuatori_g);
@@ -1397,11 +1415,12 @@ void param_read_all(void) {
 	if ((fp = fopen("params.txt", "r")) != NULL) {
 		res = fread(&(parametri.param), sizeof(float) * ONBOARD_PARAM_COUNT, 1, fp);
 		res = fread(&(parametri.param_name), sizeof(char) * ONBOARD_PARAM_COUNT * ONBOARD_PARAM_NAME_LENGTH, 1, fp);
+
+
+		write_groundcontrol(&parametri);
+
+		fclose(fp);
 	}
-
-	write_groundcontrol(&parametri);
-
-	fclose(fp);
 }
 
 void param_write_all(void) {
@@ -1414,9 +1433,10 @@ void param_write_all(void) {
 	if ((fp = fopen("params.txt", "w")) != NULL) {
 		res = fwrite(&(parametri.param), sizeof(float) * ONBOARD_PARAM_COUNT, 1, fp);
 		res = fwrite(&(parametri.param_name), sizeof(char) * ONBOARD_PARAM_COUNT * ONBOARD_PARAM_NAME_LENGTH, 1, fp);
-	}
 
-	fclose(fp);
+
+		fclose(fp);
+	}
 
 }
 
@@ -1793,7 +1813,15 @@ enum MAV_NAV get_sys_state_nav_mode(void) {
 /** @brief Set the current navigation mode */
 void set_sys_state_nav_mode(enum MAV_NAV nav_mode){
 	pthread_mutex_lock(&groundcontrol_mutex);
+	if (groundcontrol_data.state.nav_mode != nav_mode) {
+	groundcontrol_data.state.prevnav_mode = groundcontrol_data.state.nav_mode;
+	}
 	groundcontrol_data.state.nav_mode = nav_mode;
+	pthread_mutex_unlock(&groundcontrol_mutex);
+}
+void set_sys_state_nav_mode_prev(){
+	pthread_mutex_lock(&groundcontrol_mutex);
+	groundcontrol_data.state.nav_mode = groundcontrol_data.state.prevnav_mode;
 	pthread_mutex_unlock(&groundcontrol_mutex);
 }
 
@@ -2004,7 +2032,7 @@ void update_system_statemachine(void) {
 		//global_data.param[PARAM_MIX_POSITION_Z_WEIGHT] = 0;
 		//global_data.param[PARAM_MIX_OFFSET_WEIGHT] = 1;
 		//global_data.param[PARAM_MIX_REMOTE_WEIGHT] = 1;
-		set_sys_state_nav_mode(MAV_NAV_FREE_DRIFT);
+		//set_sys_state_nav_mode(MAV_NAV_FREE_DRIFT);
 		//set_sys_state_status(MAV_STATE_ACTIVE);
 		break;
 	/*
@@ -2121,7 +2149,7 @@ void rc_calibration(void) {
 	}
 	write_attuatori(&attuatori_g);
 
-	sleep(2);
+	sleep(3);
 
 	for(i=0;i<NUMS_ATTUATORI;i++) {
 		if((attuatori_g.id[i]==0) || (attuatori_g.id[i]==1) || (attuatori_g.id[i]==2) || (attuatori_g.id[i]==3)) {
@@ -2129,6 +2157,8 @@ void rc_calibration(void) {
 		}
 	}
 	write_attuatori(&attuatori_g);
+
+	sleep(10);
 }
 
 //re-map rc in 0-10000 value 0->0% 10000->100%

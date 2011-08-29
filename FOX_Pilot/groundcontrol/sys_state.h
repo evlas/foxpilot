@@ -61,6 +61,7 @@ typedef struct {
 	enum MAV_AUTOPILOT_TYPE autopilot;
 	enum MAV_STATE status;
 	enum MAV_STATE prevstatus;
+	enum MAV_NAV prevnav_mode;
 
 	bool failsafe;
 	bool indoor;
@@ -82,6 +83,7 @@ bool set_sys_state_mode(enum MAV_MODE mode);
 enum MAV_NAV get_sys_state_nav_mode(void);
 /** @brief Set the current navigation mode */
 void set_sys_state_nav_mode(enum MAV_NAV nav_mode);
+void set_sys_state_nav_mode_prev(void);
 
 /** @brief Get the current system type */
 enum MAV_TYPE get_sys_state_type(void);
