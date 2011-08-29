@@ -43,7 +43,7 @@ void *watchdog_loop(void *ptr) {
 		if (get_configurato_watchdog() && (!get_connesso_watchdog())) {
 			set_failsafe_watchdog(true);
 		}
-
+/*
 		if (ret >= 64) {
 			printf("failsafe ");
 			ret-=64;
@@ -79,7 +79,7 @@ void *watchdog_loop(void *ptr) {
 		}
 
 		printf("\n");
-
+*/
 		////////////////
 /*
 		read_sensori(&w_sensori);
