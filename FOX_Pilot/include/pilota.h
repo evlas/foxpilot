@@ -19,11 +19,13 @@
 #include <sensori.h>
 #include <attuatori.h>
 
+#include <math/pid.h>
+
 typedef struct __pilota_system_t {
 	int16_t roll;
 	int16_t pitch;
 	int16_t yaw;
-	uint16_t throttle;
+	uint16_t throttle;   //0 - 10000
 
 	int16_t rollspeed;
 	int16_t pitchspeed;
@@ -51,14 +53,21 @@ pilota_t        pilota_data;
 pthread_mutex_t pilota_mutex;
 pthread_cond_t  pilota_cond;
 
+PID_t altitudePID;
+PID_t rollPID;
+PID_t pitchPID;
+PID_t yawPID;
+
 void *pilota_loop(void *);
 
 //MANGLER
-void init_pilota();
-void deinit_pilota();
+void init_pilota(void);
+void deinit_pilota(void);
 
-void read_pilota();
-void write_pilota();
+void read_pilota(void);
+void write_pilota(void);
+
+uint16_t get_pilota_throttle(void);
 
 //Flight Mangler
 void storeBase(pilota_system_t *base);

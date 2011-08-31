@@ -27,14 +27,7 @@ void *pololu_loop(void *ptr) {
 	int i;
 	pololuchan_t pololuchan;
 
-	init_pololu();
-
-	for (i=0;i<POLOLU_NCHAN;i++) {
-		pololuchan.max[i] = POLOLU_MAX;
-		pololuchan.zero[i] = (POLOLU_MAX+POLOLU_MIN)/2;
-		pololuchan.min[i] = POLOLU_MIN;
-		pololuchan.value[i] = pololuchan.zero[i];
-	}
+	init_pololu(&pololuchan);
 
 	while (pololu_serial.connected) {
 		read_attuatori_pololu(&pololuchan);
@@ -55,9 +48,18 @@ void conf_pololu(char *device, int rate, int data_bits, int stop_bits, int parit
 	pololu_serial.parity = parity;
 }
 
-int init_pololu() {
-	pololu_serial.connected = false;
+int init_pololu(pololuchan_t *chan) {
+	int i;
+	attuatori_t attuatori;
 
+	for (i=0;i<POLOLU_NCHAN;i++) {
+		chan->max[i] = POLOLU_MAX;
+		chan->zero[i] = (POLOLU_MAX+POLOLU_MIN)/2;
+		chan->min[i] = POLOLU_MIN;
+		//pololuchan.value[i] = pololuchan.zero[i];
+	}
+
+	pololu_serial.connected = false;
 	while((pololu_serial.fd = init_serial(pololu_serial.device,
 									pololu_serial.rate,
 									pololu_serial.data_bits,
@@ -68,6 +70,22 @@ int init_pololu() {
 		sleep(5);
 	};
 	pololu_serial.connected = true;
+
+	get_attuatori(&attuatori);
+
+	for(i=0;i<NUMS_ATTUATORI;i++){
+			if (attuatori.value[i] < 0) {
+				chan->value[attuatori.id[i]] = (((chan->zero[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+			} else {
+				chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->zero[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+			}
+//		chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/(attuatori[i].max-attuatori.min[i]))+chan->min[attuatori.id[i]];
+	}
+
+	for (i=0;i<POLOLU_NCHAN;i++) {
+		p_position_absolute(i, chan->value[i]);
+	}
+
 	return(0);
 }
 

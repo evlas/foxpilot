@@ -60,10 +60,29 @@ int main(int argc, char *argv[]) {
 		exit(errno);
 	}
 
-//	while (get_sys_state_status() < MAV_STATE_BOOT) {
-//		sleep(2);
-//		send_mav_statustext(0, "Check Configurazione", 20);
-//	}
+	while (get_sys_state_status() < MAV_STATE_STANDBY) {
+		if (get_sys_state_status() == 0) {
+			set_sys_state_status(MAV_STATE_BOOT);
+		}
+
+		send_mav_statustext(0, "Check Configurazione", 20);
+
+		sleep(1);
+
+		//printf("get_sys_state_status() %d\n",get_sys_state_status());
+	}
+
+	//Avvio la gestione degli attuatori
+	init_attuatori();
+	conf_pololu(POLOLU_DEVICE, POLOLU_RATE, POLOLU_DATABITS, POLOLU_STOPBITS, POLOLU_PARITY);
+	if (pthread_create(&pthr_attuatori[0], NULL, pololu_loop, NULL)){
+		printf("ERROR; pthread_create(attuatori(pololu))\n");
+		exit(errno);
+	}
+	if((int)get_param_value(PARAM_ESC_CALIBRATION) == 1) {
+		esc_calibration();
+		set_param_value(PARAM_ESC_CALIBRATION, 0.0);
+	}
 
 	//Avvio la lettura dai sensori
 	init_sensori();
@@ -77,14 +96,6 @@ int main(int argc, char *argv[]) {
 //		printf("ERROR; pthread_create(sensori(batteria))\n");
 //		exit(errno);
 //	}
-
-	//Avvio la gestione degli attuatori
-	init_attuatori();
-	conf_pololu(POLOLU_DEVICE, POLOLU_RATE, POLOLU_DATABITS, POLOLU_STOPBITS, POLOLU_PARITY);
-	if (pthread_create(&pthr_attuatori[0], NULL, pololu_loop, NULL)){
-		printf("ERROR; pthread_create(attuatori(pololu))\n");
-		exit(errno);
-	}
 
 	//Avvio logica di volo
 	if (pthread_create(&pthr_pilota, NULL, pilota_loop, NULL)){

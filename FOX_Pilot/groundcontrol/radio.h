@@ -20,16 +20,17 @@ typedef struct __comm_t {
 } comm_t;
 
 typedef struct __manual_ctrl_t {
-	float roll; ///< roll
-	float pitch; ///< pitch
-	float yaw; ///< yaw
-	float thrust; ///< thrust
+	float roll; ///< roll -1.0 <-> 1.0
+	float pitch; ///< pitch -1.0 <-> 1.0
+	float yaw; ///< yaw -1.0 <-> 1.0
+	float thrust; ///< thrust 0.0 <-> 1.0 ??
 	uint8_t roll_manual; ///< roll control enabled auto:0, manual:1
 	uint8_t pitch_manual; ///< pitch auto:0, manual:1
 	uint8_t yaw_manual; ///< yaw auto:0, manual:1
 	uint8_t thrust_manual; ///< thrust auto:0, manual:1
 } manual_ctrl_t;
 
+void esc_calibration(void);
 void rc_calibration(void);
 
 //re-map rc in 0-10000 value 0->0% 10000->100%
