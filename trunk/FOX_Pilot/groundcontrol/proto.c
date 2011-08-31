@@ -59,6 +59,11 @@ void *protocol_loop(void *ptr) {
 
 		read_groundcontrol(&groundcontrol_g);
 
+		if ((microsSinceEpoch()-last_gps_g_old)>1000000) {
+			read_gps_sensori(&gps_g_old);
+			last_gps_g_old = microsSinceEpoch();
+		}
+
 		///////////////////////////////////////////////////////////////////////////
 		/// NON-CRITICAL SLOW 2 Hz functions
 		///////////////////////////////////////////////////////////////////////////
@@ -82,13 +87,13 @@ void *protocol_loop(void *ptr) {
 		// EXTENDED SYSTEM STATUS
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_EXTENDED_STATUS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_EXTENDED_STATUS].rate))) {
 			//printf("EXTENDED SYSTEM STATUS\n");
-			//send_mav_control_status();
+			send_mav_control_status();
 		}
 		// REMOTE CONTROL CHANNELS
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].rate))) {
 			//printf("REMOTE CONTROL CHANNELS\n");
-			send_mav_rc_channels_raw();
-			//send_mav_rc_channels_scaled();
+			//send_mav_rc_channels_raw();
+			send_mav_rc_channels_scaled();
 			send_mav_servo_output_raw();
 		}
 		// RAW CONTROLLER
@@ -171,7 +176,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 		set_drop_rate(status.packet_rx_drop_count, status.packet_rx_success_count);
 
-		printf("msg.msgid %d\n",msg.msgid);
+		//printf("msg.msgid %d\n",msg.msgid);
 
 		switch(msg.msgid) {
 		case MAVLINK_MSG_ID_HEARTBEAT: {
@@ -220,7 +225,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_action_decode(&msg, &action);
 
-			printf("TARGET %d ACTION %d\n",action.target, mavlink_msg_action_get_action(&msg));
+			//printf("TARGET %d ACTION %d\n",action.target, mavlink_msg_action_get_action(&msg));
 
 			if ((action.target == get_param_value(PARAM_SYSTEM_ID))) {
 				//				&& (action.target_component == get_param_value(PARAM_COMPONENT_ID))) {
@@ -376,10 +381,8 @@ int handle_message(uint8_t *buf, int dim) {
 					ok_ko=1;
 					break;
 				case MAV_ACTION_CALIBRATE_RC:
-					if (get_sys_state_status() == MAV_STATE_STANDBY) {
-						rc_calibration();
-						ok_ko=1;
-					}
+					//rc_calibration();
+					//ok_ko=1;
 					break;
 				case MAV_ACTION_CALIBRATE_GYRO:
 					//start_gyro_calibration();
@@ -419,12 +422,12 @@ int handle_message(uint8_t *buf, int dim) {
 					break;
 				case MAV_ACTION_LOITER:
 					if (get_sys_state_nav_mode() > MAV_NAV_GROUNDED) {
-											//hold position
-											set_sys_state_nav_mode(MAV_NAV_LOITER);
-											ok_ko=1;
-										} else {
-											send_mav_statustext(0, "HALT Impossibile", 16);
-										}
+						//hold position
+						set_sys_state_nav_mode(MAV_NAV_LOITER);
+						ok_ko=1;
+					} else {
+						send_mav_statustext(0, "HALT Impossibile", 16);
+					}
 					break;
 				case MAV_ACTION_SET_ORIGIN:
 					// If not flying
@@ -695,9 +698,6 @@ void send_system_state(void) {
 
 	// Send system status
 	send_mav_status();
-
-	// Send auxiliary status
-	//send_mav_status_aux();
 }
 
 
@@ -899,11 +899,10 @@ int send_mav_local_position(void) {
 			gps_g.altitude/100.0,
 			(gps_g.speed/100.0 * lat)/V,
 			(gps_g.speed/100.0 * lon)/V,
-			((gps_g.altitude - gps_g_old.altitude)/100.0)/(last_gps_g-last_gps_g_old));
+			((gps_g.altitude - gps_g_old.altitude)/100.0)/((last_gps_g-last_gps_g_old)/1000000.0));
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	memcpy(&gps_g_old, &gps_g, sizeof(gps_t));
-	last_gps_g_old = last_gps_g;
+
 	return(send_udpserver(buf, len));
 }
 
@@ -936,11 +935,10 @@ int send_mav_global_position(void) {
 			gps_g.altitude/100.0,
 			(gps_g.speed/100.0 * lat)/V,
 			(gps_g.speed/100.0 * lon)/V,
-			((gps_g.altitude - gps_g_old.altitude)/100.0)/(last_gps_g-last_gps_g_old));
+			((gps_g.altitude - gps_g_old.altitude)/100.0)/((last_gps_g-last_gps_g_old)/1000000.0));
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	memcpy(&gps_g_old, &gps_g, sizeof(gps_t));
-	last_gps_g_old = last_gps_g;
+
 	return(send_udpserver(buf, len));
 }
 
@@ -1023,7 +1021,7 @@ int send_mav_rc_channels_scaled(void) {
 	get_attuatori(&attuatori_g);
 
 	for (i=0;i<min(8,NUMS_ATTUATORI);i++) {
-		servi_out[attuatori_g.id[i]]=attuatori_g.value[i];
+		servi_out[attuatori_g.id[i]]=attuatori_g.value[i]/10;
 	}
 
 	mavlink_msg_rc_channels_scaled_pack(get_param_value(PARAM_SYSTEM_ID),
@@ -1146,28 +1144,28 @@ int send_mav_global_position_int(void) {
 	uint8_t buf[MAV_BUFFER_LENGTH];
 	gps_t gps_g;
 	uint64_t last_gps_g;
-	int lat,lon;
+	float lat,lon;
 	double V;
 
 	read_gps_sensori(&gps_g);
 	last_gps_g = microsSinceEpoch();
 
-	lat = (gps_g.latitude - gps_g_old.latitude)/(last_gps_g-last_gps_g_old);
-	lon = (gps_g.longitude - gps_g_old.longitude)/(last_gps_g-last_gps_g_old);
+	lat = ((gps_g.latitude - gps_g_old.latitude)*1.0)/(last_gps_g - last_gps_g_old);
+	lon = ((gps_g.longitude - gps_g_old.longitude)*1.0)/(last_gps_g - last_gps_g_old);
+	if ((V = sqrt(pow(lat,2.0)+pow(lon,2.0)))==0) V=0.0000001;
 
 	mavlink_msg_global_position_int_pack(get_param_value(PARAM_SYSTEM_ID),
 			get_param_value(PARAM_COMPONENT_ID),
 			&msg,
 			gps_g.latitude,
 			gps_g.longitude,
-			gps_g.altitude*10,
-			(gps_g.speed * lat),
-			(gps_g.speed * lon),
-			(gps_g.altitude - gps_g_old.altitude)/(last_gps_g-last_gps_g_old));
+			gps_g.altitude * 10,
+			(int16_t)(gps_g.speed * lat)/V,
+			(int16_t)(gps_g.speed * lon)/V,
+			(int16_t)(gps_g.altitude - gps_g_old.altitude)/((last_gps_g-last_gps_g_old)/1000000.0));
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
-	memcpy(&gps_g_old, &gps_g, sizeof(gps_t));
-	last_gps_g_old = last_gps_g;
+
 	return(send_udpserver(buf, len));
 }
 
@@ -1179,14 +1177,13 @@ int send_mav_vfr_hud(void) {
 	int len;
 	mavlink_message_t msg;
 	uint8_t buf[MAV_BUFFER_LENGTH];
+	uint64_t last_gps_g;
 	gps_t gps_g;
 	imu_t imu_g;
-	pilota_t pilota_g;
 
 	read_gps_sensori(&gps_g);
 	read_imu_sensori(&imu_g);
-
-	read_pilota(&pilota_g);
+	last_gps_g = microsSinceEpoch();
 
 	mavlink_msg_vfr_hud_pack(get_param_value(PARAM_SYSTEM_ID),
 			get_param_value(PARAM_COMPONENT_ID),
@@ -1194,11 +1191,12 @@ int send_mav_vfr_hud(void) {
 			gps_g.speed/100.0,
 			gps_g.speed/100.0,
 			imu_g.yaw/100,
-			pilota_g.last.throttle,
+			get_pilota_throttle()/100,
 			gps_g.altitude/100.0,
-			((gps_g.altitude - pilota_g.last.altitude)/100.0)/((microsSinceEpoch()-pilota_g.last.time_dt)/1000000.0));
+			((gps_g.altitude - gps_g_old.altitude)/100.0)/((last_gps_g - last_gps_g_old)/1000000.0));
 
 	len = mavlink_msg_to_send_buffer(buf, &msg);
+
 	return(send_udpserver(buf, len));
 }
 
@@ -1293,6 +1291,9 @@ void param_defaults(void) {
 
 	groundcontrol_data.param[PARAM_IMU_RESET] = 0.0;
 	strcpy(groundcontrol_data.param_name[PARAM_IMU_RESET], "SYS_IMU_RESET");
+
+	groundcontrol_data.param[PARAM_ESC_CALIBRATION] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_ESC_CALIBRATION], "BOOT_ESC_CALIBR");
 
 	groundcontrol_data.param[PARAM_PID_ALTI_KP] = 0.0;
 	strcpy(groundcontrol_data.param_name[PARAM_PID_ALTI_KP], "ALTI_KP");
@@ -1464,27 +1465,51 @@ void handle_param(int i){
 	case PARAM_IMU_RESET:
 		//handler
 		break;
+	case PARAM_ESC_CALIBRATION:
+		break;
 
 	case PARAM_PID_ALTI_KP:
 	case PARAM_PID_ALTI_KI:
 	case PARAM_PID_ALTI_KD:
 	case PARAM_PID_ALTI_INTMAX:
+		pid_set_parameters(&altitudePID,
+				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KP],
+				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KI],
+				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KD],
+				pilota_data.groundcontrol.param[PARAM_PID_ALTI_INTMAX]);
+		break;
 
 	case PARAM_PID_ROLL_KP:
 	case PARAM_PID_ROLL_KI:
 	case PARAM_PID_ROLL_KD:
 	case PARAM_PID_ROLL_INTMAX:
+		pid_set_parameters(&rollPID,
+				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KP],
+				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KI],
+				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KD],
+				pilota_data.groundcontrol.param[PARAM_PID_ROLL_INTMAX]);
+		break;
 
 	case PARAM_PID_PITCH_KP:
 	case PARAM_PID_PITCH_KI:
 	case PARAM_PID_PITCH_KD:
 	case PARAM_PID_PITCH_INTMAX:
+		pid_set_parameters(&pitchPID,
+				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KP],
+				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KI],
+				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KD],
+				pilota_data.groundcontrol.param[PARAM_PID_PITCH_INTMAX]);
+		break;
 
 	case PARAM_PID_YAW_KP:
 	case PARAM_PID_YAW_KI:
 	case PARAM_PID_YAW_KD:
 	case PARAM_PID_YAW_INTMAX:
-		//niente
+		pid_set_parameters(&yawPID,
+				pilota_data.groundcontrol.param[PARAM_PID_YAW_KP],
+				pilota_data.groundcontrol.param[PARAM_PID_YAW_KI],
+				pilota_data.groundcontrol.param[PARAM_PID_YAW_KD],
+				pilota_data.groundcontrol.param[PARAM_PID_YAW_INTMAX]);
 		break;
 
 	case PARAM_RC_0_ID:
@@ -1725,7 +1750,7 @@ char *get_param_name(char *name, uint16_t param_id) {
 void set_datastream(enum MAV_DATA_STREAM dstream, uint16_t rate, bool enable) {
 	pthread_mutex_lock(&groundcontrol_mutex);
 	groundcontrol_data.datastream[dstream].enable = enable;
-	groundcontrol_data.datastream[dstream].rate = rate;
+	groundcontrol_data.datastream[dstream].rate = min(rate, 50);
 	pthread_mutex_unlock(&groundcontrol_mutex);
 }
 
@@ -1814,7 +1839,7 @@ enum MAV_NAV get_sys_state_nav_mode(void) {
 void set_sys_state_nav_mode(enum MAV_NAV nav_mode){
 	pthread_mutex_lock(&groundcontrol_mutex);
 	if (groundcontrol_data.state.nav_mode != nav_mode) {
-	groundcontrol_data.state.prevnav_mode = groundcontrol_data.state.nav_mode;
+		groundcontrol_data.state.prevnav_mode = groundcontrol_data.state.nav_mode;
 	}
 	groundcontrol_data.state.nav_mode = nav_mode;
 	pthread_mutex_unlock(&groundcontrol_mutex);
@@ -2024,7 +2049,7 @@ void update_system_statemachine(void) {
 		set_sys_state_nav_mode(MAV_NAV_GROUNDED);
 		set_sys_state_status(MAV_STATE_STANDBY);
 		break;
-		*/
+	 */
 
 	case MAV_MODE_MANUAL:
 		//global_data.param[PARAM_MIX_POSITION_WEIGHT] = 0;
@@ -2035,7 +2060,7 @@ void update_system_statemachine(void) {
 		//set_sys_state_nav_mode(MAV_NAV_FREE_DRIFT);
 		//set_sys_state_status(MAV_STATE_ACTIVE);
 		break;
-	/*
+		/*
 	case MAV_MODE_GUIDED: {
 
 		if (get_sys_state_position_fix()) {
@@ -2105,7 +2130,7 @@ void update_system_statemachine(void) {
 		break;
 	case MAV_MODE_READY:
 		break;
-		*/
+		 */
 	default:
 		printf("");
 		//global_data.param[PARAM_MIX_POSITION_WEIGHT] = 0;
@@ -2138,15 +2163,20 @@ bool set_sys_state_manual_ctrl(manual_ctrl_t mctrl) {
 
 /////////////////////////////////////////////////////////////////////////////////////
 //RADIO
-void rc_calibration(void) {
+void rc_calibration(void) {}
+
+void esc_calibration(void) {
 	int i;
 	attuatori_t attuatori_g;
+
+	get_attuatori(&attuatori_g);
 
 	for(i=0;i<NUMS_ATTUATORI;i++) {
 		if((attuatori_g.id[i]==0) || (attuatori_g.id[i]==1) || (attuatori_g.id[i]==2) || (attuatori_g.id[i]==3)) {
 			attuatori_g.value[i] = attuatori_g.max[i];
 		}
 	}
+
 	write_attuatori(&attuatori_g);
 
 	sleep(3);
@@ -2174,12 +2204,12 @@ uint8_t get_rssi(void) {
 	FILE *fp = NULL;
 	uint8_t res = 0, none;
 
-	if ((fp=fopen(WLAN_LEVEL, "r")) != NULL) {
+//	if ((fp=fopen(WLAN_LEVEL, "r")) != NULL) {
 
-		none = fscanf(fp, "%c", &res);
+//		none = fscanf(fp, "%c", &res);
 
-		fclose(fp);
-	}
+//		fclose(fp);
+//	}
 
 	return(res);
 };

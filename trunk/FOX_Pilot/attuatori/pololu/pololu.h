@@ -104,7 +104,7 @@ void *pololu_loop(void *ptr);
 
 //handler
 void conf_pololu(char *device, int rate, int data_bits, int stop_bits, int parity);
-int init_pololu();
+int init_pololu(pololuchan_t *chan);
 void deinit_pololu();
 
 void read_attuatori_pololu(pololuchan_t *chan);
