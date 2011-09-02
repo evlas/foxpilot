@@ -11,179 +11,272 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <math.h>
 
 #include <defines.h>
 #include <config.h>
 
-#include "quad.h"
 #include <groundcontrol.h>
 #include <watchdog.h>
 #include <sensori.h>
 #include <attuatori.h>
 #include <pilota.h>
 
-/*
+#include <math/pid.h>
+#include <math/range.h>
+
+#include "quad.h"
+
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////// X MODE //////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-//stabilizza il volo
 int processFlightControlQuadX(pilota_t *pilota_quad) {
-	if (pilota_quad->groundcontrol.engage) {
-		gettimeofday(&(pilota_quad->current.time),NULL);
+	int i;
+	int out_min = 500;	//5%
 
-		altitude_control(pid_t *altitudePID, pilota_t *pilota_quad);
+	if (pilota_quad->groundcontrol.state.status > MAV_STATE_STANDBY) {
+		processAttitude(pilota_quad);
 
+		processHeading(pilota_quad);
 
-			// Quadcopter mix
-			Servo_Timer2_set(RIGHT_M,radio.ch[2] - rollPID.value - yawPID.value);    // Right motor
-			Servo_Timer2_set(LEFT_M,radio.ch[2] + rollPID.value - yawPID.value);     // Left motor
-			Servo_Timer2_set(FRONT_M,radio.ch[2] + pitchPID.value + yawPID.value);   // Front motor
-			Servo_Timer2_set(BACK_M,radio.ch[2] - pitchPID.value + yawPID.value);    // Back motor
+		processThrottle(pilota_quad);
+
+		//////////////
+		pilota_quad->current.throttle_out = (uint16_t)(remap(pilota_quad->current.throttle_f, 0.0, 1.0, -10000, 10000));
+
+		//pilota_quad->current.yaw = (uint16_t)(remap(pilota_quad->current.yaw_f, -1.0, 1.0, -10000, 10000));
+		pilota_quad->current.yaw_out = angle_to_10000(pilota_quad->current.yaw_f);
+
+		//X_FRAME
+		//roll_out = (int)(remap(pilota_quad->groundcontrol.state.remote.roll, -1.0, 1.0, -10000, 10000) * .707);
+		//pitch_out = (int)(remap(pilota_quad->groundcontrol.state.remote.pitch, -1.0, 1.0, -10000, 10000) * .707);
+		//pilota_quad->current.roll = (uint16_t)remap(pilota_quad->current.roll_f, -1.0, 1.0, -10000, 10000);
+		//pilota_quad->current.pitch = (uint16_t)remap(pilota_quad->current.pitch_f, -1.0, 1.0, -10000, 10000);
+		pilota_quad->current.roll_out = angle_to_10000(pilota_quad->current.roll_f);
+		pilota_quad->current.pitch_out = angle_to_10000(pilota_quad->current.pitch_f);
+
+		//printf("throttle_out %d yaw_out %d roll_out %d pitch_out %d \n", throttle_out, yaw_out, roll_out, pitch_out);
+
+		// left
+		pilota_quad->attuatori.value[1] = pilota_quad->current.throttle_out - pilota_quad->current.roll_out - pilota_quad->current.pitch_out; // FRONT
+		pilota_quad->attuatori.value[2] = pilota_quad->current.throttle_out - pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
+
+		// right
+		pilota_quad->attuatori.value[0] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out - pilota_quad->current.pitch_out; // FRONT
+		pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
+
+		// Yaw input
+		pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+
+		// We need to clip motor output at out_max. When cipping a motors
+		// output we also need to compensate for the instability by
+		// lowering the opposite motor by the same proportion. This
+		// ensures that we retain control when one or more of the motors
+		// is at its maximum output
+		for (i=0; i<4; i++) {
+			if (pilota_quad->attuatori.value[i] > pilota_quad->attuatori.max[i]) {
+				// note that i^1 is the opposite motor
+				switch(i){
+				case 0:
+					pilota_quad->attuatori.value[2] -= (pilota_quad->attuatori.value[0] - pilota_quad->attuatori.max[0]);
+					pilota_quad->attuatori.value[0] = pilota_quad->attuatori.max[0];
+					break;
+				case 1:
+					pilota_quad->attuatori.value[3] -= (pilota_quad->attuatori.value[1] - pilota_quad->attuatori.max[1]);
+					pilota_quad->attuatori.value[1] = pilota_quad->attuatori.max[1];
+					break;
+				case 2:
+					pilota_quad->attuatori.value[0] -= (pilota_quad->attuatori.value[2] - pilota_quad->attuatori.max[2]);
+					pilota_quad->attuatori.value[2] = pilota_quad->attuatori.max[2];
+					break;
+				case 3:
+					pilota_quad->attuatori.value[1] -= (pilota_quad->attuatori.value[3] - pilota_quad->attuatori.max[3]);
+					pilota_quad->attuatori.value[3] = pilota_quad->attuatori.max[3];
+					break;
+				}
+			}
 		}
+
+		// limit output so motors don't stop
+		pilota_quad->attuatori.value[0] = max(pilota_quad->attuatori.value[0], pilota_quad->attuatori.min[0] + out_min);
+		pilota_quad->attuatori.value[1] = max(pilota_quad->attuatori.value[1], pilota_quad->attuatori.min[1] + out_min);
+		pilota_quad->attuatori.value[2] = max(pilota_quad->attuatori.value[2], pilota_quad->attuatori.min[2] + out_min);
+		pilota_quad->attuatori.value[3] = max(pilota_quad->attuatori.value[3], pilota_quad->attuatori.min[3] + out_min);
+
+		//printf("0 %d 1 %d 2 %d 3 %d\n",pilota_quad->attuatori.value[0],pilota_quad->attuatori.value[1],pilota_quad->attuatori.value[2],pilota_quad->attuatori.value[3]);
+
+		pilota_quad->last = pilota_quad->current;
+
 	} else {
-		gettimeofday(&(pilota_quad->new.time),NULL);
+		return (1);
 	}
 
 	return(0);
 }
 
+int processFlightControlQuadXManual(pilota_t *pilota_quad) {
+	int i;
+	int out_min = 500;	//5%
+
+	if(pilota_quad->groundcontrol.state.status > MAV_STATE_STANDBY) {
+		pilota_quad->current.throttle_out = (int16_t)(remap(pilota_quad->groundcontrol.state.remote.thrust, 0.0, 1.0, -10000, 10000));
+
+//		pilota_quad->current.yaw = (int16_t)(remap(pilota_quad->groundcontrol.state.remote.yaw, -1.0, 1.0, -10000, 10000));
+		pilota_quad->current.yaw_out = angle_to_10000(pilota_quad->groundcontrol.state.remote.yaw);
+
+		//X_FRAME
+		//pilota_quad->current.roll = (int16_t)remap(pilota_quad->groundcontrol.state.remote.roll, -1.0, 1.0, -10000, 10000);
+		//pilota_quad->current.pitch = (int16_t)remap(pilota_quad->groundcontrol.state.remote.pitch, -1.0, 1.0, -10000, 10000);
+		pilota_quad->current.roll_out = angle_to_10000(pilota_quad->groundcontrol.state.remote.roll);
+		pilota_quad->current.pitch_out = angle_to_10000(pilota_quad->groundcontrol.state.remote.pitch);
+
+		// left
+		pilota_quad->attuatori.value[1] = pilota_quad->current.throttle_out - pilota_quad->current.roll_out - pilota_quad->current.pitch_out; // FRONT
+		pilota_quad->attuatori.value[2] = pilota_quad->current.throttle_out - pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
+
+		// right
+		pilota_quad->attuatori.value[0] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out - pilota_quad->current.pitch_out; // FRONT
+		pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
+
+		// Yaw input
+		pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+
+		// We need to clip motor output at out_max. When cipping a motors
+		// output we also need to compensate for the instability by
+		// lowering the opposite motor by the same proportion. This
+		// ensures that we retain control when one or more of the motors
+		// is at its maximum output
+		for (i=0; i<4; i++) {
+			if (pilota_quad->attuatori.value[i] > pilota_quad->attuatori.max[i]) {
+				// note that i^1 is the opposite motor
+				switch(i){
+				case 0:
+					pilota_quad->attuatori.value[2] -= (pilota_quad->attuatori.value[0] - pilota_quad->attuatori.max[0]);
+					pilota_quad->attuatori.value[0] = pilota_quad->attuatori.max[0];
+					break;
+				case 1:
+					pilota_quad->attuatori.value[3] -= (pilota_quad->attuatori.value[1] - pilota_quad->attuatori.max[1]);
+					pilota_quad->attuatori.value[1] = pilota_quad->attuatori.max[1];
+					break;
+				case 2:
+					pilota_quad->attuatori.value[0] -= (pilota_quad->attuatori.value[2] - pilota_quad->attuatori.max[2]);
+					pilota_quad->attuatori.value[2] = pilota_quad->attuatori.max[2];
+					break;
+				case 3:
+					pilota_quad->attuatori.value[1] -= (pilota_quad->attuatori.value[3] - pilota_quad->attuatori.max[3]);
+					pilota_quad->attuatori.value[3] = pilota_quad->attuatori.max[3];
+					break;
+				}
+			}
+		}
+
+		// limit output so motors don't stop
+		pilota_quad->attuatori.value[0] = max(pilota_quad->attuatori.value[0], pilota_quad->attuatori.min[0] + out_min);
+		pilota_quad->attuatori.value[1] = max(pilota_quad->attuatori.value[1], pilota_quad->attuatori.min[1] + out_min);
+		pilota_quad->attuatori.value[2] = max(pilota_quad->attuatori.value[2], pilota_quad->attuatori.min[2] + out_min);
+		pilota_quad->attuatori.value[3] = max(pilota_quad->attuatori.value[3], pilota_quad->attuatori.min[3] + out_min);
+
+		//printf("0 %d 1 %d 2 %d 3 %d\n",pilota_quad->attuatori.value[0],pilota_quad->attuatori.value[1],pilota_quad->attuatori.value[2],pilota_quad->attuatori.value[3]);
+
+		pilota_quad->last = pilota_quad->current;
+	} else {
+		return(1);
+	}
+	return(0);
+}
+
+
 //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// PLUS MODE //////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-void processFlightControlQuadPlus(void) {
-  // ********************** Calculate Flight Error ***************************
-  calculateFlightError();
-
-  // ********************** Update Yaw ***************************************
-  processHeading();
-
-  // ********************** Altitude Adjust **********************************
-  processAltitudeHold();
-
-  // ********************** Calculate Motor Commands *************************
-  if (armed && safetyCheck) {
-    motors.setMotorCommand(FRONT, throttle - motors.getMotorAxisCommand(PITCH) - motors.getMotorAxisCommand(YAW));
-    motors.setMotorCommand(REAR, throttle + motors.getMotorAxisCommand(PITCH) - motors.getMotorAxisCommand(YAW));
-    motors.setMotorCommand(RIGHT, throttle - motors.getMotorAxisCommand(ROLL) + motors.getMotorAxisCommand(YAW));
-    motors.setMotorCommand(LEFT, throttle + motors.getMotorAxisCommand(ROLL) + motors.getMotorAxisCommand(YAW));
-  }
-
-  // *********************** process min max motor command *******************
-  processMinMaxMotorCommand();
-
-  // Allows quad to do acrobatics by lowering power to opposite motors during hard manuevers
-  if (flightMode == ACRO) {
-    processHardManuevers();
-  }
-
-  // Apply limits to motor commands
-  for (byte motor = FRONT; motor < LASTMOTOR; motor++) {
-    motors.setMotorCommand(motor, constrain(motors.getMotorCommand(motor), motors.getMinCommand(motor), motors.getMaxCommand(motor)));
-  }
-
-  // If throttle in minimum position, don't apply yaw
-  if (receiver.getData(THROTTLE) < MINCHECK) {
-    for (byte motor = FRONT; motor < LASTMOTOR; motor++) {
-      motors.setMotorCommand(motor, MINTHROTTLE);
-    }
-  }
-
-  // ESC Calibration
-  if (armed == OFF) {
-    processCalibrateESC();
-  }
-
-  // *********************** Command Motors **********************
-  if (armed == ON && safetyCheck == ON) {
-    motors.write(); // Defined in Motors.h
-  }
+int processFlightControlQuadPlus(pilota_t *pilota_quad) {
 }
- */
 
-/* ************************************************************ */
-/* Altitude control */
-/*
-void altitude_control(pid_t *altitudePID, pilota_t *pilota_quad) {
-	double G_dt;
 
-	G_dt = difftimeval(pilota_quad->current.time, pilota_quad->last.time);
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////// processAttitude //////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+void processAttitude(pilota_t *pilota_quad) {
+	//pilota_quad->groundcontrol.state.remote.roll	-0.2 <-> 0.2 rad
+	pilota_quad->current.roll_f = pid_calculate(&rollPID,
+			pilota_quad->groundcontrol.state.remote.roll,
+			pilota_quad->sensori.imu.roll*D2R/100.0,
+			0.0);
 
-	altitudePID->err_old = altitudePID->err;
-	altitudePID->err = pilota_quad->groundcontrol.altitude - pilota_quad->sensori.gps.altitude;
-	altitudePID->err = constrain_float(altitudePID.err,-60,60);
-	altitudePID.D = (float)(altitudePID.err-altitudePID.err_old)/G_dt;
-	altitudePID.I += (float)altitudePID.err*G_Dt;
-	altitudePID.I = constrain_float(altitudePID.I,-150,150);
-	altitudePID.value = Initial_Throttle + altitudePID.KP*altitudePID.err + altitudePID.KD*altitudePID.D + altitudePID.KI*altitudePID.I;
+	//pilota_quad->groundcontrol.state.remote.pitch	-0.2 <-> 0.2 rad
+	pilota_quad->current.pitch_f = pid_calculate(&pitchPID,
+			pilota_quad->groundcontrol.state.remote.pitch,
+			pilota_quad->sensori.imu.pitch*D2R/100.0,
+			0.0);
+
+	pilota_quad->current.roll_f = clamp(pilota_quad->current.roll_f,-0.4,0.4);
+	pilota_quad->current.pitch_f = clamp(pilota_quad->current.pitch_f,-0.4,0.4);
+
+	printf("pilota_quad->current.roll_f %f\n", pilota_quad->current.roll_f);
+	printf("pilota_quad->current.pitch_f %f\n", pilota_quad->current.pitch_f);
 }
-*/
-/* ************************************************************ */
-// ROLL, PITCH and YAW PID controls...
-/*
-void Attitude_control(pid_t *rollPID, pid_t *pitchPID, pid_t *yawPID) {
-	// ROLL CONTROL
-	if (pilot.mode==1) {
-		//		command_rx_roll += command_RF_roll;     // Add position control term
-		command_rx_roll_diff = 0;
+
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////// processHeading ///////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+void processHeading(pilota_t *pilota_quad) {
+	float yaw_incr;
+
+	//pilota_quad->groundcontrol.state.remote.yaw	-0.5 <-> 0.5 rad
+	yaw_incr = pilota_quad->groundcontrol.state.remote.yaw + (pilota_quad->sensori.imu.yaw*D2R/100.0);
+	if (yaw_incr > PI) {
+		yaw_incr -= 2*PI;
+	}
+	if (yaw_incr < -PI)	{
+		yaw_incr += 2*PI;
 	}
 
-	rollPID.err = command_rx_roll - ToDeg(roll);
+	pilota_quad->current.yaw_f = pid_calculate(&yawPID,
+			yaw_incr,
+			pilota_quad->sensori.imu.yaw*D2R/100.0,
+			0.0);
 
-	rollPID.err = constrain_float(rollPID.err,-25,25);  // to limit max roll command...
+	pilota_quad->current.yaw_f = clamp(pilota_quad->current.yaw_f,-0.5,0.5);
 
-	rollPID.I += rollPID.err*G_Dt;
-	rollPID.I = constrain_float(rollPID.I,-20,20);
-	// D term implementation => two parts: gyro part and command part
-	// To have a better (faster) response we can use the Gyro reading directly for the Derivative term...
-	// Omega[] is the raw gyro reading plus Omega_I, so it´s bias corrected
-	// We also add a part that takes into account the command from user (stick) to make the system more responsive to user inputs
-	rollPID.D = command_rx_roll_diff*KD_QUAD_COMMAND_PART - ToDeg(Omega[0]);  // Take into account Angular velocity of the stick (command)
+	printf("pilota_quad->current.yaw_f %f\n", pilota_quad->current.yaw_f);
 
-	// PID control
-	rollPID.value = rollPID.KP*rollPID.err + rollPID.KD*rollPID.D + rollPID.KI*rollPID.I;
-
-	// PITCH CONTROL
-	if (pilot.mode==1) {
-		//		command_rx_pitch += command_RF_pitch;     // Add position control term
-		command_rx_pitch_diff = 0;
-	}
-
-	pitchPID.err = command_rx_pitch - ToDeg(pitch);
-
-	pitchPID.err = constrain_float(pitchPID.err,-25,25);  // to limit max pitch command...
-
-	pitchPID.I += pitchPID.err*G_Dt;
-	pitchPID.I = constrain_float(pitchPID.I,-20,20);
-	// D term
-	pitchPID.D = command_rx_pitch_diff*KD_QUAD_COMMAND_PART - ToDeg(Omega[1]);
-
-	// PID control
-	pitchPID.value = pitchPID.KP*pitchPID.err + pitchPID.KD*pitchPID.D + pitchPID.KI*pitchPID.I;
-
-	// YAW CONTROL
-	yawPID.err = command_rx_yaw - ToDeg(yaw);
-	if (yawPID.err > 180)    // Normalize to -180,180
-		yawPID.err -= 360;
-	else if(yawPID.err < -180)
-		yawPID.err += 360;
-
-	yawPID.err = constrain_float(yawPID.err,-60,60);  // to limit max yaw command...
-
-	yawPID.I += yawPID.err*G_Dt;
-	yawPID.I = constrain_float(yawPID.I,-50,50);
-	yawPID.D = command_rx_yaw_diff*KD_QUAD_COMMAND_PART - ToDeg(Omega[2]);
-
-	// PID control
-	yawPID.value= yawPID.KP*yawPID.err + yawPID.KD*yawPID.D + yawPID.KI*yawPID.I;
+	//commandedYaw = constrain(receiver.getSIData(YAW) + radians(headingHold), -PI, PI);
+	//motors.setMotorAxisCommand(YAW, updatePID(commandedYaw, gyro.getData(YAW), &PID[YAW]));
 }
-*/
-/*
-int channel_filter(int ch, int ch_old) {
-	if (ch_old==0) {
-		return(ch);
-	} else {
-		return((ch+ch_old)>>1);     // small filtering (average filter)
-	}
-}
-*/
 
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////// processThrottle //////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+void processThrottle(pilota_t *pilota_quad) {
+	pilota_quad->current.throttle_f = pilota_quad->groundcontrol.state.remote.thrust *
+			(2.0 - (cos(pilota_quad->current.roll_f)*cos(pilota_quad->current.pitch_f)));
+
+	pilota_quad->current.throttle_f = clamp(pilota_quad->current.throttle_f,0.0,1.0);
+
+	printf("pilota_quad->current.throttle_f %f\n", pilota_quad->current.throttle_f);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+/////////////////////////// processAltitude //////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+void processAltitude(pilota_t *pilota_quad) {
+
+}
+
+
+
+
+
+
+
+/////////////////////////// angle_to_10000 //////////////////////////////////
+int16_t angle_to_10000(float angle) {
+	return (angle * 10000/PI);
+}

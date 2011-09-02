@@ -40,6 +40,8 @@
 #include "sys_state.h"
 #include "radio.h"
 
+#include "waypoint/waypoint.h"
+
 gps_t gps_g_old;
 uint64_t last_gps_g_old;
 imu_t imu_g_old;
@@ -92,7 +94,7 @@ void *protocol_loop(void *ptr) {
 		// REMOTE CONTROL CHANNELS
 		if ((groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].enable == 1) && !(count % (50/groundcontrol_g.datastream[MAV_DATA_STREAM_RC_CHANNELS].rate))) {
 			//printf("REMOTE CONTROL CHANNELS\n");
-			//send_mav_rc_channels_raw();
+			send_mav_rc_channels_raw();
 			send_mav_rc_channels_scaled();
 			send_mav_servo_output_raw();
 		}
@@ -176,7 +178,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 		set_drop_rate(status.packet_rx_drop_count, status.packet_rx_success_count);
 
-		//printf("msg.msgid %d\n",msg.msgid);
+		printf("msg.msgid %d\n",msg.msgid);
 
 		switch(msg.msgid) {
 		case MAVLINK_MSG_ID_HEARTBEAT: {
@@ -555,6 +557,105 @@ int handle_message(uint8_t *buf, int dim) {
 			}
 		}
 		break;
+		case MAVLINK_MSG_ID_WAYPOINT: {
+			mavlink_waypoint_t wp;
+
+			printf("GOT WAYPOINT!\n");
+
+			mavlink_msg_waypoint_decode(&msg, &wp);
+
+			if(wp.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+					send_mav_waypoint_ack(wp.target_system,wp.target_component,set_waypoint(wp));
+			}
+
+		}
+		break;
+		case MAVLINK_MSG_ID_WAYPOINT_SET_CURRENT: {
+			mavlink_waypoint_set_current_t wpsc;
+
+			mavlink_msg_waypoint_set_current_decode(&msg, &wpsc);
+
+			if(wpsc.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+					send_mav_waypoint_ack(wpsc.target_system,wpsc.target_component,set_waypoint_current_active_wp_id(wpsc.seq));
+			}
+
+		}
+		case MAVLINK_MSG_ID_WAYPOINT_REQUEST_LIST: {
+			mavlink_waypoint_request_list_t wprl;
+
+			mavlink_msg_waypoint_request_list_decode(&msg, &wprl);
+
+			if(wprl.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+				set_waypoint_timestamp_lastaction();
+
+				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE) {
+					if (get_waypoint_size() > 0) {
+						set_waypoint_current_state(MAVLINK_WPM_STATE_SENDLIST);
+						set_waypoint_current_active_wp_id(0);
+					}
+					set_waypoint_current_count(get_waypoint_size());
+					send_mav_waypoint_count(msg.sysid, msg.compid, get_waypoint_current_count());
+				}
+				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST) {
+					if (get_waypoint_size() > 0) {
+						int i;
+						for(i=0;i<get_waypoint_size();i++) {
+							int count = get_waypoint_current_count();
+							send_mav_waypoint(msg.sysid, msg.compid, count);
+							set_waypoint_current_count(count-1);
+						}
+						set_waypoint_current_state(MAVLINK_WPM_STATE_IDLE);
+					}
+				}
+			}
+		}
+		break;
+		case MAVLINK_MSG_ID_WAYPOINT_COUNT: {
+			mavlink_waypoint_count_t wpc;
+
+			mavlink_msg_waypoint_count_decode(&msg, &wpc);
+
+			if(wpc.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+				set_waypoint_timestamp_lastaction();
+
+				if ((get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)
+						|| ((get_waypoint_current_state() == MAVLINK_WPM_STATE_GETLIST)
+								&& (get_waypoint_current_active_wp_id() == 0))) {
+					if (get_waypoint_current_count() > 0) {
+						set_waypoint_current_state(MAVLINK_WPM_STATE_GETLIST);
+						set_waypoint_current_active_wp_id(0);
+						set_waypoint_current_count(get_waypoint_current_count());
+
+						set_waypoint_rcv_size(0);
+
+						send_mav_waypoint_request(msg.sysid, msg.compid, get_waypoint_current_active_wp_id());
+					} else if (get_waypoint_current_count() == 0) {
+						set_waypoint_rcv_size(0);
+						set_waypoint_current_active_wp_id(-1);
+						set_waypoint_yaw_reached(false);
+						set_waypoint_pos_reached(false);
+					}
+				}
+			}
+		}
+		break;
+		case MAVLINK_MSG_ID_WAYPOINT_CLEAR_ALL: {
+            mavlink_waypoint_clear_all_t wpca;
+
+            mavlink_msg_waypoint_clear_all_decode(&msg, &wpca);
+
+            if((wpca.target_system == get_param_value(PARAM_SYSTEM_ID))
+            		&& (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)){
+                set_waypoint_timestamp_lastaction();
+
+                // Delete all waypoints
+                set_waypoint_size(0);
+                set_waypoint_current_active_wp_id(-1);
+                set_waypoint_yaw_reached(false);
+                set_waypoint_pos_reached(false);
+            }
+		}
+		break;
 		case MAVLINK_MSG_ID_LOCAL_POSITION_SETPOINT_SET: {
 			mavlink_local_position_setpoint_set_t point;
 
@@ -563,7 +664,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			if (((uint8_t) point.target_system == get_param_value(PARAM_SYSTEM_ID))) {
 				//&& ((uint8_t) point.target_component == get_param_value(PARAM_COMPONENT_ID))) {
-				/*
+					/*
 				if (global_data.param[PARAM_POSITIONSETPOINT_ACCEPT] == 1) {
 					//			global_data.position_setpoint.x = pos.x;
 					//			global_data.position_setpoint.y = pos.y;
@@ -580,7 +681,7 @@ int handle_message(uint8_t *buf, int dim) {
 				mavlink_msg_position_control_setpoint_send(MAVLINK_COMM_1, pos.id,
 						pos.x, pos.y, pos.z, pos.yaw);
 			}
-				 */
+					 */
 			}
 		}
 		break;
@@ -1010,7 +1111,7 @@ int send_mav_rc_channels_raw(void) {
 /*
 MAVLINK_MSG_ID_RC_CHANNELS_SCALED 36
  */
-//attenzione sembra non piacere a qgroundstation
+//attenzione sembra non piacere a qgroundstation su windows
 int send_mav_rc_channels_scaled(void) {
 	int len, i;
 	mavlink_message_t msg;
@@ -1021,7 +1122,7 @@ int send_mav_rc_channels_scaled(void) {
 	get_attuatori(&attuatori_g);
 
 	for (i=0;i<min(8,NUMS_ATTUATORI);i++) {
-		servi_out[attuatori_g.id[i]]=attuatori_g.value[i]/10;
+		servi_out[attuatori_g.id[i]]=attuatori_g.value[i];
 	}
 
 	mavlink_msg_rc_channels_scaled_pack(get_param_value(PARAM_SYSTEM_ID),
@@ -1191,7 +1292,7 @@ int send_mav_vfr_hud(void) {
 			gps_g.speed/100.0,
 			gps_g.speed/100.0,
 			imu_g.yaw/100,
-			get_pilota_throttle()/100,
+			get_pilota_throttle_0100()/100,
 			gps_g.altitude/100.0,
 			((gps_g.altitude - gps_g_old.altitude)/100.0)/((last_gps_g - last_gps_g_old)/1000000.0));
 
@@ -1331,77 +1432,77 @@ void param_defaults(void) {
 	groundcontrol_data.param[PARAM_PID_YAW_INTMAX] = 0.0;
 	strcpy(groundcontrol_data.param_name[PARAM_PID_YAW_INTMAX], "YAW_IMAX");
 
-	groundcontrol_data.param[PARAM_RC_0_ID] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_0_ID], "RC_0_ID");
-	groundcontrol_data.param[PARAM_RC_0_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_0_MIN], "RC_0_MIN");
-	groundcontrol_data.param[PARAM_RC_0_ZERO] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_0_ZERO], "RC_0_ZERO");
-	groundcontrol_data.param[PARAM_RC_0_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_0_MAX], "RC_0_MAX");
+	groundcontrol_data.param[PARAM_SERVO_0_ID] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_0_ID], "SERVO_0_ID");
+	groundcontrol_data.param[PARAM_SERVO_0_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_0_MIN], "SERVO_0_MIN");
+	groundcontrol_data.param[PARAM_SERVO_0_ZERO] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_0_ZERO], "SERVO_0_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_0_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_0_MAX], "SERVO_0_MAX");
 
-	groundcontrol_data.param[PARAM_RC_1_ID] = 1.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_1_ID], "RC_1_ID");
-	groundcontrol_data.param[PARAM_RC_1_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_1_MIN], "RC_1_MIN");
-	groundcontrol_data.param[PARAM_RC_1_ZERO] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_1_ZERO], "RC_1_ZERO");
-	groundcontrol_data.param[PARAM_RC_1_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_1_MAX], "RC_1_MAX");
+	groundcontrol_data.param[PARAM_SERVO_1_ID] = 1.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_1_ID], "SERVO_1_ID");
+	groundcontrol_data.param[PARAM_SERVO_1_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_1_MIN], "SERVO_1_MIN");
+	groundcontrol_data.param[PARAM_SERVO_1_ZERO] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_1_ZERO], "SERVO_1_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_1_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_1_MAX], "SERVO_1_MAX");
 
-	groundcontrol_data.param[PARAM_RC_2_ID] = 2.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_2_ID], "RC_2_ID");
-	groundcontrol_data.param[PARAM_RC_2_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_2_MIN], "RC_2_MIN");
-	groundcontrol_data.param[PARAM_RC_2_ZERO] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_2_ZERO], "RC_2_ZERO");
-	groundcontrol_data.param[PARAM_RC_2_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_2_MAX], "RC_2_MAX");
+	groundcontrol_data.param[PARAM_SERVO_2_ID] = 2.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_2_ID], "SERVO_2_ID");
+	groundcontrol_data.param[PARAM_SERVO_2_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_2_MIN], "SERVO_2_MIN");
+	groundcontrol_data.param[PARAM_SERVO_2_ZERO] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_2_ZERO], "SERVO_2_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_2_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_2_MAX], "SERVO_2_MAX");
 
-	groundcontrol_data.param[PARAM_RC_3_ID] = 3.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_3_ID], "RC_3_ID");
-	groundcontrol_data.param[PARAM_RC_3_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_3_MIN], "RC_3_MIN");
-	groundcontrol_data.param[PARAM_RC_3_ZERO] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_3_ZERO], "RC_3_ZERO");
-	groundcontrol_data.param[PARAM_RC_3_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_3_MAX], "RC_3_MAX");
+	groundcontrol_data.param[PARAM_SERVO_3_ID] = 3.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_3_ID], "SERVO_3_ID");
+	groundcontrol_data.param[PARAM_SERVO_3_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_3_MIN], "SERVO_3_MIN");
+	groundcontrol_data.param[PARAM_SERVO_3_ZERO] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_3_ZERO], "SERVO_3_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_3_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_3_MAX], "SERVO_3_MAX");
 
-	groundcontrol_data.param[PARAM_RC_4_ID] = 4.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_4_ID], "RC_4_ID");
-	groundcontrol_data.param[PARAM_RC_4_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_4_MIN], "RC_4_MIN");
-	groundcontrol_data.param[PARAM_RC_4_ZERO] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_4_ZERO], "RC_4_ZERO");
-	groundcontrol_data.param[PARAM_RC_4_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_4_MAX], "RC_4_MAX");
+	groundcontrol_data.param[PARAM_SERVO_4_ID] = 4.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_4_ID], "SERVO_4_ID");
+	groundcontrol_data.param[PARAM_SERVO_4_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_4_MIN], "SERVO_4_MIN");
+	groundcontrol_data.param[PARAM_SERVO_4_ZERO] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_4_ZERO], "SERVO_4_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_4_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_4_MAX], "SERVO_4_MAX");
 
-	groundcontrol_data.param[PARAM_RC_5_ID] = 5.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_5_ID], "RC_5_ID");
-	groundcontrol_data.param[PARAM_RC_5_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_5_MIN], "RC_5_MIN");
-	groundcontrol_data.param[PARAM_RC_5_ZERO] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_5_ZERO], "RC_5_ZERO");
-	groundcontrol_data.param[PARAM_RC_5_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_5_MAX], "RC_5_MAX");
+	groundcontrol_data.param[PARAM_SERVO_5_ID] = 5.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_5_ID], "SERVO_5_ID");
+	groundcontrol_data.param[PARAM_SERVO_5_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_5_MIN], "SERVO_5_MIN");
+	groundcontrol_data.param[PARAM_SERVO_5_ZERO] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_5_ZERO], "SERVO_5_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_5_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_5_MAX], "SERVO_5_MAX");
 
-	groundcontrol_data.param[PARAM_RC_6_ID] = 6.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_6_ID], "RC_6_ID");
-	groundcontrol_data.param[PARAM_RC_6_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_6_MIN], "RC_6_MIN");
-	groundcontrol_data.param[PARAM_RC_6_ZERO] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_6_ZERO], "RC_6_ZERO");
-	groundcontrol_data.param[PARAM_RC_6_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_6_MAX], "RC_6_MAX");
+	groundcontrol_data.param[PARAM_SERVO_6_ID] = 6.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_6_ID], "SERVO_6_ID");
+	groundcontrol_data.param[PARAM_SERVO_6_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_6_MIN], "SERVO_6_MIN");
+	groundcontrol_data.param[PARAM_SERVO_6_ZERO] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_6_ZERO], "SERVO_6_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_6_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_6_MAX], "SERVO_6_MAX");
 
-	groundcontrol_data.param[PARAM_RC_7_ID] = 7.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_7_ID], "RC_7_ID");
-	groundcontrol_data.param[PARAM_RC_7_MIN] = -10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_7_MIN], "RC_7_MIN");
-	groundcontrol_data.param[PARAM_RC_7_ZERO] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_7_ZERO], "RC_7_ZERO");
-	groundcontrol_data.param[PARAM_RC_7_MAX] = 10000.0;
-	strcpy(groundcontrol_data.param_name[PARAM_RC_7_MAX], "RC_7_MAX");
+	groundcontrol_data.param[PARAM_SERVO_7_ID] = 7.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_7_ID], "SERVO_7_ID");
+	groundcontrol_data.param[PARAM_SERVO_7_MIN] = -10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_7_MIN], "SERVO_7_MIN");
+	groundcontrol_data.param[PARAM_SERVO_7_ZERO] = 0.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_7_ZERO], "SERVO_7_ZERO");
+	groundcontrol_data.param[PARAM_SERVO_7_MAX] = 10000.0;
+	strcpy(groundcontrol_data.param_name[PARAM_SERVO_7_MAX], "SERVO_7_MAX");
 
 	pthread_mutex_unlock(&groundcontrol_mutex);
 }
@@ -1473,10 +1574,10 @@ void handle_param(int i){
 	case PARAM_PID_ALTI_KD:
 	case PARAM_PID_ALTI_INTMAX:
 		pid_set_parameters(&altitudePID,
-				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KP],
-				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KI],
-				pilota_data.groundcontrol.param[PARAM_PID_ALTI_KD],
-				pilota_data.groundcontrol.param[PARAM_PID_ALTI_INTMAX]);
+				groundcontrol_data.param[PARAM_PID_ALTI_KP],
+				groundcontrol_data.param[PARAM_PID_ALTI_KI],
+				groundcontrol_data.param[PARAM_PID_ALTI_KD],
+				groundcontrol_data.param[PARAM_PID_ALTI_INTMAX]);
 		break;
 
 	case PARAM_PID_ROLL_KP:
@@ -1484,10 +1585,10 @@ void handle_param(int i){
 	case PARAM_PID_ROLL_KD:
 	case PARAM_PID_ROLL_INTMAX:
 		pid_set_parameters(&rollPID,
-				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KP],
-				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KI],
-				pilota_data.groundcontrol.param[PARAM_PID_ROLL_KD],
-				pilota_data.groundcontrol.param[PARAM_PID_ROLL_INTMAX]);
+				groundcontrol_data.param[PARAM_PID_ROLL_KP],
+				groundcontrol_data.param[PARAM_PID_ROLL_KI],
+				groundcontrol_data.param[PARAM_PID_ROLL_KD],
+				groundcontrol_data.param[PARAM_PID_ROLL_INTMAX]);
 		break;
 
 	case PARAM_PID_PITCH_KP:
@@ -1495,10 +1596,10 @@ void handle_param(int i){
 	case PARAM_PID_PITCH_KD:
 	case PARAM_PID_PITCH_INTMAX:
 		pid_set_parameters(&pitchPID,
-				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KP],
-				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KI],
-				pilota_data.groundcontrol.param[PARAM_PID_PITCH_KD],
-				pilota_data.groundcontrol.param[PARAM_PID_PITCH_INTMAX]);
+				groundcontrol_data.param[PARAM_PID_PITCH_KP],
+				groundcontrol_data.param[PARAM_PID_PITCH_KI],
+				groundcontrol_data.param[PARAM_PID_PITCH_KD],
+				groundcontrol_data.param[PARAM_PID_PITCH_INTMAX]);
 		break;
 
 	case PARAM_PID_YAW_KP:
@@ -1506,151 +1607,151 @@ void handle_param(int i){
 	case PARAM_PID_YAW_KD:
 	case PARAM_PID_YAW_INTMAX:
 		pid_set_parameters(&yawPID,
-				pilota_data.groundcontrol.param[PARAM_PID_YAW_KP],
-				pilota_data.groundcontrol.param[PARAM_PID_YAW_KI],
-				pilota_data.groundcontrol.param[PARAM_PID_YAW_KD],
-				pilota_data.groundcontrol.param[PARAM_PID_YAW_INTMAX]);
+				groundcontrol_data.param[PARAM_PID_YAW_KP],
+				groundcontrol_data.param[PARAM_PID_YAW_KI],
+				groundcontrol_data.param[PARAM_PID_YAW_KD],
+				groundcontrol_data.param[PARAM_PID_YAW_INTMAX]);
 		break;
 
-	case PARAM_RC_0_ID:
-	case PARAM_RC_0_MIN:
-	case PARAM_RC_0_ZERO:
-	case PARAM_RC_0_MAX: {
+	case PARAM_SERVO_0_ID:
+	case PARAM_SERVO_0_MIN:
+	case PARAM_SERVO_0_ZERO:
+	case PARAM_SERVO_0_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_0_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_0_ZERO], groundcontrol_data.param[PARAM_RC_0_MIN], groundcontrol_data.param[PARAM_RC_0_MAX]);
-		attuatori_g.id[0] = groundcontrol_data.param[PARAM_RC_0_ID];
-		attuatori_g.min[0] = groundcontrol_data.param[PARAM_RC_0_MIN];
-		attuatori_g.zero[0] = groundcontrol_data.param[PARAM_RC_0_ZERO];
-		attuatori_g.max[0] = groundcontrol_data.param[PARAM_RC_0_MAX];
+		groundcontrol_data.param[PARAM_SERVO_0_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_0_ZERO], groundcontrol_data.param[PARAM_SERVO_0_MIN], groundcontrol_data.param[PARAM_SERVO_0_MAX]);
+		attuatori_g.id[0] = groundcontrol_data.param[PARAM_SERVO_0_ID];
+		attuatori_g.min[0] = groundcontrol_data.param[PARAM_SERVO_0_MIN];
+		attuatori_g.zero[0] = groundcontrol_data.param[PARAM_SERVO_0_ZERO];
+		attuatori_g.max[0] = groundcontrol_data.param[PARAM_SERVO_0_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_1_ID:
-	case PARAM_RC_1_MIN:
-	case PARAM_RC_1_ZERO:
-	case PARAM_RC_1_MAX: {
+	case PARAM_SERVO_1_ID:
+	case PARAM_SERVO_1_MIN:
+	case PARAM_SERVO_1_ZERO:
+	case PARAM_SERVO_1_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_1_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_1_ZERO], groundcontrol_data.param[PARAM_RC_1_MIN], groundcontrol_data.param[PARAM_RC_1_MAX]);
-		attuatori_g.id[1] = groundcontrol_data.param[PARAM_RC_1_ID];
-		attuatori_g.min[1] = groundcontrol_data.param[PARAM_RC_1_MIN];
-		attuatori_g.zero[1] = groundcontrol_data.param[PARAM_RC_1_ZERO];
-		attuatori_g.max[1] = groundcontrol_data.param[PARAM_RC_1_MAX];
+		groundcontrol_data.param[PARAM_SERVO_1_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_1_ZERO], groundcontrol_data.param[PARAM_SERVO_1_MIN], groundcontrol_data.param[PARAM_SERVO_1_MAX]);
+		attuatori_g.id[1] = groundcontrol_data.param[PARAM_SERVO_1_ID];
+		attuatori_g.min[1] = groundcontrol_data.param[PARAM_SERVO_1_MIN];
+		attuatori_g.zero[1] = groundcontrol_data.param[PARAM_SERVO_1_ZERO];
+		attuatori_g.max[1] = groundcontrol_data.param[PARAM_SERVO_1_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_2_ID:
-	case PARAM_RC_2_MIN:
-	case PARAM_RC_2_ZERO:
-	case PARAM_RC_2_MAX: {
+	case PARAM_SERVO_2_ID:
+	case PARAM_SERVO_2_MIN:
+	case PARAM_SERVO_2_ZERO:
+	case PARAM_SERVO_2_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_2_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_2_ZERO], groundcontrol_data.param[PARAM_RC_2_MIN], groundcontrol_data.param[PARAM_RC_2_MAX]);
-		attuatori_g.id[2] = groundcontrol_data.param[PARAM_RC_2_ID];
-		attuatori_g.min[2] = groundcontrol_data.param[PARAM_RC_2_MIN];
-		attuatori_g.zero[2] = groundcontrol_data.param[PARAM_RC_2_ZERO];
-		attuatori_g.max[2] = groundcontrol_data.param[PARAM_RC_2_MAX];
+		groundcontrol_data.param[PARAM_SERVO_2_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_2_ZERO], groundcontrol_data.param[PARAM_SERVO_2_MIN], groundcontrol_data.param[PARAM_SERVO_2_MAX]);
+		attuatori_g.id[2] = groundcontrol_data.param[PARAM_SERVO_2_ID];
+		attuatori_g.min[2] = groundcontrol_data.param[PARAM_SERVO_2_MIN];
+		attuatori_g.zero[2] = groundcontrol_data.param[PARAM_SERVO_2_ZERO];
+		attuatori_g.max[2] = groundcontrol_data.param[PARAM_SERVO_2_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_3_ID:
-	case PARAM_RC_3_MIN:
-	case PARAM_RC_3_ZERO:
-	case PARAM_RC_3_MAX: {
+	case PARAM_SERVO_3_ID:
+	case PARAM_SERVO_3_MIN:
+	case PARAM_SERVO_3_ZERO:
+	case PARAM_SERVO_3_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_3_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_3_ZERO], groundcontrol_data.param[PARAM_RC_3_MIN], groundcontrol_data.param[PARAM_RC_3_MAX]);
-		attuatori_g.id[3] = groundcontrol_data.param[PARAM_RC_3_ID];
-		attuatori_g.min[3] = groundcontrol_data.param[PARAM_RC_3_MIN];
-		attuatori_g.zero[3] = groundcontrol_data.param[PARAM_RC_3_ZERO];
-		attuatori_g.max[3] = groundcontrol_data.param[PARAM_RC_3_MAX];
+		groundcontrol_data.param[PARAM_SERVO_3_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_3_ZERO], groundcontrol_data.param[PARAM_SERVO_3_MIN], groundcontrol_data.param[PARAM_SERVO_3_MAX]);
+		attuatori_g.id[3] = groundcontrol_data.param[PARAM_SERVO_3_ID];
+		attuatori_g.min[3] = groundcontrol_data.param[PARAM_SERVO_3_MIN];
+		attuatori_g.zero[3] = groundcontrol_data.param[PARAM_SERVO_3_ZERO];
+		attuatori_g.max[3] = groundcontrol_data.param[PARAM_SERVO_3_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_4_ID:
-	case PARAM_RC_4_MIN:
-	case PARAM_RC_4_ZERO:
-	case PARAM_RC_4_MAX:{
+	case PARAM_SERVO_4_ID:
+	case PARAM_SERVO_4_MIN:
+	case PARAM_SERVO_4_ZERO:
+	case PARAM_SERVO_4_MAX:{
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_4_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_4_ZERO], groundcontrol_data.param[PARAM_RC_4_MIN], groundcontrol_data.param[PARAM_RC_4_MAX]);
-		attuatori_g.id[4] = groundcontrol_data.param[PARAM_RC_4_ID];
-		attuatori_g.min[4] = groundcontrol_data.param[PARAM_RC_4_MIN];
-		attuatori_g.zero[4] = groundcontrol_data.param[PARAM_RC_4_ZERO];
-		attuatori_g.max[4] = groundcontrol_data.param[PARAM_RC_4_MAX];
+		groundcontrol_data.param[PARAM_SERVO_4_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_4_ZERO], groundcontrol_data.param[PARAM_SERVO_4_MIN], groundcontrol_data.param[PARAM_SERVO_4_MAX]);
+		attuatori_g.id[4] = groundcontrol_data.param[PARAM_SERVO_4_ID];
+		attuatori_g.min[4] = groundcontrol_data.param[PARAM_SERVO_4_MIN];
+		attuatori_g.zero[4] = groundcontrol_data.param[PARAM_SERVO_4_ZERO];
+		attuatori_g.max[4] = groundcontrol_data.param[PARAM_SERVO_4_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_5_ID:
-	case PARAM_RC_5_MIN:
-	case PARAM_RC_5_ZERO:
-	case PARAM_RC_5_MAX:{
+	case PARAM_SERVO_5_ID:
+	case PARAM_SERVO_5_MIN:
+	case PARAM_SERVO_5_ZERO:
+	case PARAM_SERVO_5_MAX:{
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_5_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_5_ZERO], groundcontrol_data.param[PARAM_RC_5_MIN], groundcontrol_data.param[PARAM_RC_5_MAX]);
-		attuatori_g.id[5] = groundcontrol_data.param[PARAM_RC_5_ID];
-		attuatori_g.min[5] = groundcontrol_data.param[PARAM_RC_5_MIN];
-		attuatori_g.zero[5] = groundcontrol_data.param[PARAM_RC_5_ZERO];
-		attuatori_g.max[5] = groundcontrol_data.param[PARAM_RC_5_MAX];
+		groundcontrol_data.param[PARAM_SERVO_5_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_5_ZERO], groundcontrol_data.param[PARAM_SERVO_5_MIN], groundcontrol_data.param[PARAM_SERVO_5_MAX]);
+		attuatori_g.id[5] = groundcontrol_data.param[PARAM_SERVO_5_ID];
+		attuatori_g.min[5] = groundcontrol_data.param[PARAM_SERVO_5_MIN];
+		attuatori_g.zero[5] = groundcontrol_data.param[PARAM_SERVO_5_ZERO];
+		attuatori_g.max[5] = groundcontrol_data.param[PARAM_SERVO_5_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_6_ID:
-	case PARAM_RC_6_MIN:
-	case PARAM_RC_6_ZERO:
-	case PARAM_RC_6_MAX: {
+	case PARAM_SERVO_6_ID:
+	case PARAM_SERVO_6_MIN:
+	case PARAM_SERVO_6_ZERO:
+	case PARAM_SERVO_6_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_6_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_6_ZERO], groundcontrol_data.param[PARAM_RC_6_MIN], groundcontrol_data.param[PARAM_RC_6_MAX]);
-		attuatori_g.id[6] = groundcontrol_data.param[PARAM_RC_6_ID];
-		attuatori_g.min[6] = groundcontrol_data.param[PARAM_RC_6_MIN];
-		attuatori_g.zero[6] = groundcontrol_data.param[PARAM_RC_6_ZERO];
-		attuatori_g.max[6] = groundcontrol_data.param[PARAM_RC_6_MAX];
+		groundcontrol_data.param[PARAM_SERVO_6_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_6_ZERO], groundcontrol_data.param[PARAM_SERVO_6_MIN], groundcontrol_data.param[PARAM_SERVO_6_MAX]);
+		attuatori_g.id[6] = groundcontrol_data.param[PARAM_SERVO_6_ID];
+		attuatori_g.min[6] = groundcontrol_data.param[PARAM_SERVO_6_MIN];
+		attuatori_g.zero[6] = groundcontrol_data.param[PARAM_SERVO_6_ZERO];
+		attuatori_g.max[6] = groundcontrol_data.param[PARAM_SERVO_6_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
 	break;
 
-	case PARAM_RC_7_ID:
-	case PARAM_RC_7_MIN:
-	case PARAM_RC_7_ZERO:
-	case PARAM_RC_7_MAX: {
+	case PARAM_SERVO_7_ID:
+	case PARAM_SERVO_7_MIN:
+	case PARAM_SERVO_7_ZERO:
+	case PARAM_SERVO_7_MAX: {
 		attuatori_t attuatori_g;
 
 		get_attuatori(&attuatori_g);
 		pthread_mutex_lock(&groundcontrol_mutex);
-		groundcontrol_data.param[PARAM_RC_7_ZERO] = clamp(groundcontrol_data.param[PARAM_RC_7_ZERO], groundcontrol_data.param[PARAM_RC_7_MIN], groundcontrol_data.param[PARAM_RC_7_MAX]);
-		attuatori_g.id[7] = groundcontrol_data.param[PARAM_RC_7_ID];
-		attuatori_g.min[7] = groundcontrol_data.param[PARAM_RC_7_MIN];
-		attuatori_g.zero[7] = groundcontrol_data.param[PARAM_RC_7_ZERO];
-		attuatori_g.max[7] = groundcontrol_data.param[PARAM_RC_7_MAX];
+		groundcontrol_data.param[PARAM_SERVO_7_ZERO] = clamp(groundcontrol_data.param[PARAM_SERVO_7_ZERO], groundcontrol_data.param[PARAM_SERVO_7_MIN], groundcontrol_data.param[PARAM_SERVO_7_MAX]);
+		attuatori_g.id[7] = groundcontrol_data.param[PARAM_SERVO_7_ID];
+		attuatori_g.min[7] = groundcontrol_data.param[PARAM_SERVO_7_MIN];
+		attuatori_g.zero[7] = groundcontrol_data.param[PARAM_SERVO_7_ZERO];
+		attuatori_g.max[7] = groundcontrol_data.param[PARAM_SERVO_7_MAX];
 		pthread_mutex_unlock(&groundcontrol_mutex);
 		set_attuatori(&attuatori_g);
 	}
@@ -2204,12 +2305,12 @@ uint8_t get_rssi(void) {
 	FILE *fp = NULL;
 	uint8_t res = 0, none;
 
-//	if ((fp=fopen(WLAN_LEVEL, "r")) != NULL) {
+	//	if ((fp=fopen(WLAN_LEVEL, "r")) != NULL) {
 
-//		none = fscanf(fp, "%c", &res);
+	//		none = fscanf(fp, "%c", &res);
 
-//		fclose(fp);
-//	}
+	//		fclose(fp);
+	//	}
 
 	return(res);
 };

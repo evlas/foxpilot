@@ -18,12 +18,12 @@ SRC_ATTUATORI := attuatori/pololu/pololu.c
 SRC_SENSORI := sensori/arduimu/arduimu.c \
 			   sensori/batteria/mybatteria.c
 
-SRC_PILOTA := pilota/manuale/manual.c \
-			  pilota/quad/quad.c
+SRC_PILOTA := pilota/quad/quad.c
 
 SRC_GROUNCONTROLL := groundcontrol/proto.c \
 					 groundcontrol/TCP_Server/tcpserver.c \
-					 groundcontrol/UDP_Server/udpserver.c
+					 groundcontrol/UDP_Server/udpserver.c \
+					 groundcontrol/waypoint/waypoint.c
 
 SOURCES := $(SRC_FIRMWARE) $(SRC_ATTUATORI) $(SRC_SENSORI) $(SRC_PILOTA) $(SRC_GROUNCONTROLL)
 

@@ -28,52 +28,52 @@ void init_attuatori() {
 	int i;
 	pthread_mutex_lock(&attuatori_mutex);
 
-	attuatori_data.id[0] = get_param_value(PARAM_RC_0_ID);
-	attuatori_data.min[0] = get_param_value(PARAM_RC_0_MIN);
-	attuatori_data.zero[0] = get_param_value(PARAM_RC_0_ZERO);
-	attuatori_data.max[0] = get_param_value(PARAM_RC_0_MAX);
+	attuatori_data.id[0] = get_param_value(PARAM_SERVO_0_ID);
+	attuatori_data.min[0] = get_param_value(PARAM_SERVO_0_MIN);
+	attuatori_data.zero[0] = get_param_value(PARAM_SERVO_0_ZERO);
+	attuatori_data.max[0] = get_param_value(PARAM_SERVO_0_MAX);
 	attuatori_data.value[0] = attuatori_data.zero[0];
 
-	attuatori_data.id[1] = get_param_value(PARAM_RC_1_ID);
-	attuatori_data.min[1] = get_param_value(PARAM_RC_1_MIN);
-	attuatori_data.zero[1] = get_param_value(PARAM_RC_1_ZERO);
-	attuatori_data.max[1] = get_param_value(PARAM_RC_1_MAX);
+	attuatori_data.id[1] = get_param_value(PARAM_SERVO_1_ID);
+	attuatori_data.min[1] = get_param_value(PARAM_SERVO_1_MIN);
+	attuatori_data.zero[1] = get_param_value(PARAM_SERVO_1_ZERO);
+	attuatori_data.max[1] = get_param_value(PARAM_SERVO_1_MAX);
 	attuatori_data.value[1] = attuatori_data.zero[1];
 
-	attuatori_data.id[2] = get_param_value(PARAM_RC_2_ID);
-	attuatori_data.min[2] = get_param_value(PARAM_RC_2_MIN);
-	attuatori_data.zero[2] = get_param_value(PARAM_RC_2_ZERO);
-	attuatori_data.max[2] = get_param_value(PARAM_RC_2_MAX);
+	attuatori_data.id[2] = get_param_value(PARAM_SERVO_2_ID);
+	attuatori_data.min[2] = get_param_value(PARAM_SERVO_2_MIN);
+	attuatori_data.zero[2] = get_param_value(PARAM_SERVO_2_ZERO);
+	attuatori_data.max[2] = get_param_value(PARAM_SERVO_2_MAX);
 	attuatori_data.value[2] = attuatori_data.zero[2];
 
-	attuatori_data.id[3] = get_param_value(PARAM_RC_3_ID);
-	attuatori_data.min[3] = get_param_value(PARAM_RC_3_MIN);
-	attuatori_data.zero[3] = get_param_value(PARAM_RC_3_ZERO);
-	attuatori_data.max[3] = get_param_value(PARAM_RC_3_MAX);
+	attuatori_data.id[3] = get_param_value(PARAM_SERVO_3_ID);
+	attuatori_data.min[3] = get_param_value(PARAM_SERVO_3_MIN);
+	attuatori_data.zero[3] = get_param_value(PARAM_SERVO_3_ZERO);
+	attuatori_data.max[3] = get_param_value(PARAM_SERVO_3_MAX);
 	attuatori_data.value[3] = attuatori_data.zero[3];
 
-	attuatori_data.id[4] = get_param_value(PARAM_RC_4_ID);
-	attuatori_data.min[4] = get_param_value(PARAM_RC_4_MIN);
-	attuatori_data.zero[4] = get_param_value(PARAM_RC_4_ZERO);
-	attuatori_data.max[4] = get_param_value(PARAM_RC_4_MAX);
+	attuatori_data.id[4] = get_param_value(PARAM_SERVO_4_ID);
+	attuatori_data.min[4] = get_param_value(PARAM_SERVO_4_MIN);
+	attuatori_data.zero[4] = get_param_value(PARAM_SERVO_4_ZERO);
+	attuatori_data.max[4] = get_param_value(PARAM_SERVO_4_MAX);
 	attuatori_data.value[4] = attuatori_data.zero[4];
 
-	attuatori_data.id[5] = get_param_value(PARAM_RC_5_ID);
-	attuatori_data.min[5] = get_param_value(PARAM_RC_5_MIN);
-	attuatori_data.zero[5] = get_param_value(PARAM_RC_5_ZERO);
-	attuatori_data.max[5] = get_param_value(PARAM_RC_5_MAX);
+	attuatori_data.id[5] = get_param_value(PARAM_SERVO_5_ID);
+	attuatori_data.min[5] = get_param_value(PARAM_SERVO_5_MIN);
+	attuatori_data.zero[5] = get_param_value(PARAM_SERVO_5_ZERO);
+	attuatori_data.max[5] = get_param_value(PARAM_SERVO_5_MAX);
 	attuatori_data.value[5] = attuatori_data.zero[5];
 
-	attuatori_data.id[6] = get_param_value(PARAM_RC_6_ID);
-	attuatori_data.min[6] = get_param_value(PARAM_RC_6_MIN);
-	attuatori_data.zero[6] = get_param_value(PARAM_RC_6_ZERO);
-	attuatori_data.max[6] = get_param_value(PARAM_RC_6_MAX);
+	attuatori_data.id[6] = get_param_value(PARAM_SERVO_6_ID);
+	attuatori_data.min[6] = get_param_value(PARAM_SERVO_6_MIN);
+	attuatori_data.zero[6] = get_param_value(PARAM_SERVO_6_ZERO);
+	attuatori_data.max[6] = get_param_value(PARAM_SERVO_6_MAX);
 	attuatori_data.value[6] = attuatori_data.zero[6];
 
-	attuatori_data.id[7] = get_param_value(PARAM_RC_7_ID);
-	attuatori_data.min[7] = get_param_value(PARAM_RC_7_MIN);
-	attuatori_data.zero[7] = get_param_value(PARAM_RC_7_ZERO);
-	attuatori_data.max[7] = get_param_value(PARAM_RC_7_MAX);
+	attuatori_data.id[7] = get_param_value(PARAM_SERVO_7_ID);
+	attuatori_data.min[7] = get_param_value(PARAM_SERVO_7_MIN);
+	attuatori_data.zero[7] = get_param_value(PARAM_SERVO_7_ZERO);
+	attuatori_data.max[7] = get_param_value(PARAM_SERVO_7_MAX);
 	attuatori_data.value[7] = attuatori_data.zero[7];
 
 	pthread_mutex_unlock(&attuatori_mutex);

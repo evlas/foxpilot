@@ -22,10 +22,15 @@
 #include <math/pid.h>
 
 typedef struct __pilota_system_t {
-	int16_t roll;
-	int16_t pitch;
-	int16_t yaw;
-	uint16_t throttle;   //0 - 10000
+	float roll_f;		//-1.0 <-> 1.0
+	float pitch_f;		//-1.0 <-> 1.0
+	float yaw_f;		//-1.0 <-> 1.0
+	float throttle_f;   //0.0 <-> 1.0
+
+	int16_t roll_out;   	//-10000 <-> 10000
+	int16_t pitch_out;   	//-10000 <-> 10000
+	int16_t yaw_out;   		//-10000 <-> 10000
+	int16_t throttle_out;	//-10000 <-> 10000
 
 	int16_t rollspeed;
 	int16_t pitchspeed;
@@ -35,6 +40,8 @@ typedef struct __pilota_system_t {
 	int32_t longitude;
 	int32_t latitude;
 	int16_t altitude;
+
+	float altitude_f;
 
 	int16_t speed;
 	int64_t time_dt;
@@ -54,6 +61,7 @@ pthread_mutex_t pilota_mutex;
 pthread_cond_t  pilota_cond;
 
 PID_t altitudePID;
+
 PID_t rollPID;
 PID_t pitchPID;
 PID_t yawPID;
@@ -67,7 +75,8 @@ void deinit_pilota(void);
 void read_pilota(void);
 void write_pilota(void);
 
-uint16_t get_pilota_throttle(void);
+int16_t get_pilota_throttle(void);
+uint16_t get_pilota_throttle_0100(void);
 
 //Flight Mangler
 void storeBase(pilota_system_t *base);

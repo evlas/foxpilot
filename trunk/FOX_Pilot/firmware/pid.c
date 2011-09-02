@@ -57,11 +57,12 @@ void pid_set_parameters(PID_t *pid, float kp, float ki, float kd, float intmax) 
 /**
  *
  * @param pid
- * @param val
+ * @param sp	targetPosition
+ * @param val	currentPosition
  * @param dt
  * @return
  */
-float pid_calculate(PID_t *pid, float sp, float val, float val_dot, float dt) {
+float pid_calculate(PID_t *pid, float sp, float val, float val_dot) {
 	/*  error = setpoint - actual_position
 	 integral = integral + (error*dt)
 	 derivative = (error - previous_error)/dt
@@ -70,6 +71,8 @@ float pid_calculate(PID_t *pid, float sp, float val, float val_dot, float dt) {
 	 wait(dt)
 	 goto start
 	 */
+	uint64_t currentTime = microsSinceEpoch();
+	float dt = (currentTime - pid->previousTime) / 1000000.0;;
 
 	float i, d;
 	pid->sp = sp;
@@ -104,6 +107,7 @@ float pid_calculate(PID_t *pid, float sp, float val, float val_dot, float dt) {
 	}
 
 	pid->error_previous = error;
+	pid->previousTime = currentTime;
 
 	return ((error * pid->kp) + (i * pid->ki) + (d * pid->kd));
 }
