@@ -25,7 +25,20 @@
 #define RL RE	//Rear Left
 #define RR RI	//Rear Rigth
 
+int processFlightControlQuadPlusManual(pilota_t *pilota_quad);
 int processFlightControlQuadPlus(pilota_t *pilota_quad);
+
+int processFlightControlQuadXManual(pilota_t *pilota_quad);
 int processFlightControlQuadX(pilota_t *pilota_quad);
+
+void processAttitude(pilota_t *pilota_quad);
+void processHeading(pilota_t *pilota_quad);
+void processThrottle(pilota_t *pilota_quad);
+
+void processAltitude(pilota_t *pilota_quad);
+
+
+
+int16_t angle_to_10000(float angle);
 
 #endif /* QUAD_H_ */

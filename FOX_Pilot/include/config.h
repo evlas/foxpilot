@@ -16,11 +16,11 @@
 
 /***************************************/
 // Watchdog
-#define PERIODO_WATCHDOG 1000000	//1 secondo
+#define PERIODO_WATCHDOG 1000000	//1Hz
 
 /***************************************/
 // Pilota
-#define PERIODO_PILOTA	 20000
+#define PERIODO_PILOTA	 20000		//50Hz
 
 /***************************************/
 //Ground Control:

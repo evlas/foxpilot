@@ -33,6 +33,8 @@
 
 
 //conversioni
+#define PI  3.1415926535897932384626433832795029
+
 #define D2R			0.017453292519940	//decimali <-> radianti
 #define R2D			57.29577951308232
 

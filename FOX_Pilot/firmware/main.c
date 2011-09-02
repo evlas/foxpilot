@@ -27,6 +27,7 @@
 #include <groundcontrol/proto.h>
 #include <groundcontrol/TCP_Server/tcpserver.h>
 #include <groundcontrol/UDP_Server/udpserver.h>
+#include <groundcontrol/waypoint/waypoint.h>
 
 #include <sensori/arduimu/arduimu.h>
 #include <sensori/batteria/mybatteria.h>
@@ -34,7 +35,7 @@
 #include <attuatori/pololu/pololu.h>
 
 int main(int argc, char *argv[]) {
-	pthread_t pthr_watchdog, pthr_groundcontrol[3], pthr_sensori[2], pthr_attuatori[1], pthr_pilota;
+	pthread_t pthr_watchdog, pthr_groundcontrol[4], pthr_sensori[2], pthr_attuatori[1], pthr_pilota;
 
 	//Load della configurazione
 //	load_configuration();
@@ -57,6 +58,10 @@ int main(int argc, char *argv[]) {
 //	}
 	if (pthread_create(&pthr_groundcontrol[2], NULL, udpserver_loop, NULL)){
 		printf("ERROR; pthread_create(groundcontrol(udpserver))\n");
+		exit(errno);
+	}
+	if (pthread_create(&pthr_groundcontrol[3], NULL, waypoint_loop, NULL)){
+		printf("ERROR; pthread_create(groundcontrol(waypoint))\n");
 		exit(errno);
 	}
 
@@ -107,6 +112,7 @@ int main(int argc, char *argv[]) {
 	pthread_join(pthr_groundcontrol[0], NULL);
 //	pthread_join(pthr_groundcontrol[1], NULL);
 	pthread_join(pthr_groundcontrol[2], NULL);
+	pthread_join(pthr_groundcontrol[3], NULL);
 	pthread_join(pthr_sensori[0], NULL);
 //	pthread_join(pthr_sensori[1], NULL);
 	pthread_join(pthr_attuatori[0], NULL);

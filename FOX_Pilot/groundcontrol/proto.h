@@ -14,9 +14,6 @@
 
 #include <mavlink.h>
 
-#include "param.h"
-#include "sys_state.h"
-
 void *protocol_loop(void *ptr);
 void init_protocol();
 
@@ -49,7 +46,6 @@ int send_mav_servo_output_raw(void);
 
 //VARIE
 uint64_t microsSinceEpoch();
-
 
 //VARIE
 void start_gyro_calibration(void);
