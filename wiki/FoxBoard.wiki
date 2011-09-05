@@ -36,3 +36,5 @@ Built on the Atmel ARM9 @ 400Mhz CPU module Netus G20-L (included)<br>
 
 Temperature range: -15 to +70 Celsius degree (°C)<br>
 Average power consumpiom: 80 mA @ 5V (0.4 Watt) without microSD, ethernet link, USB devices or other peripherals.<br>
+
+http://www.acmesystems.it/www/FOXG20/foxg20_parts.jpg
