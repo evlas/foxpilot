@@ -4,35 +4,35 @@
 
 FOX Board G20 is Single Board Computer built around the ARM9@400Mhz Atmel CPU AT91SAM9G20. (http://www.acmesystems.it/?id=FOXG20)
 
-The main fields of application are: 
-- Solid-state web application servers
-- Embedded devices enhanced with Internet connectivity and Linux flexibility
-- Thousands of ready-to-run applications can be easily installed on the FOX Board G20 thanks to the Debian Linux distribution and its huge application repository. 
-- Any programming language can be used to develop your own application (read more...).
+The main fields of application are: <br>
+- Solid-state web application servers<br>
+- Embedded devices enhanced with Internet connectivity and Linux flexibility<br>
+- Thousands of ready-to-run applications can be easily installed on the FOX Board G20 thanks to the Debian Linux distribution and its huge application repository.<br> 
+- Any programming language can be used to develop your own application (read more...).<br>
 
 = Details =
 
-Two 40 pin sockets pich 2.54mm are available to plug the board on specific application carriers or add-on boards. On these pins 3.3 Volt signals are available which can be used to implement RS232/RS485/RS422, I2C, SPI, GPIO, A/D and PWM interfaces.
+Two 40 pin sockets pich 2.54mm are available to plug the board on specific application carriers or add-on boards. On these pins 3.3 Volt signals are available which can be used to implement RS232/RS485/RS422, I2C, SPI, GPIO, A/D and PWM interfaces.<br>
+<br>
+A fast prototyping cabling system is also available to realize your end-user devices without without using the soldering iron or designing any custom board (Read more...).<br>
+<br>
+Built on the Atmel ARM9 @ 400Mhz CPU module Netus G20-L (included)<br>
+- 64MB of RAM<br>
+- 256KB of FLASH memory for the bootloader<br>
+- Up to 16GB on bootable microSD<br>
+- Two USB 2.0 host ports (12 Mbits)<br>
+- One Ethernet 10/100 port<br>
+- One USB device port (12 Mbits)<br>
+- One debug serial port (3.3v)<br>
+- Two serial ports (3.3v)<br>
+- One serial port for 4DSystems oLed displays<br>
+- 5VDC power supply input (compatible with PS5V1A)<br>
+- Real Time Clock with on-board backup battery<br>
+- GPIO lines (3.3v)<br>
+- 4 A/D converter lines<br>
+- I2C<br>
+- SPI<br>
+- Built-in quad power supply Netus PS1 module<br>
 
-A fast prototyping cabling system is also available to realize your end-user devices without without using the soldering iron or designing any custom board (Read more...).
-
-Built on the Atmel ARM9 @ 400Mhz CPU module Netus G20-L (included)
-- 64MB of RAM
-- 256KB of FLASH memory for the bootloader
-- Up to 16GB on bootable microSD
-- Two USB 2.0 host ports (12 Mbits)
-- One Ethernet 10/100 port
-- One USB device port (12 Mbits)
-- One debug serial port (3.3v)
-- Two serial ports (3.3v)
-- One serial port for 4DSystems oLed displays
-- 5VDC power supply input (compatible with PS5V1A)
-- Real Time Clock with on-board backup battery
-- GPIO lines (3.3v)
-- 4 A/D converter lines
-- I2C
-- SPI
-- Built-in quad power supply Netus PS1 module
-
-Temperature range: -15 to +70 Celsius degree (°C)
-Average power consumpiom: 80 mA @ 5V (0.4 Watt) without microSD, ethernet link, USB devices or other peripherals.
+Temperature range: -15 to +70 Celsius degree (°C)<br>
+Average power consumpiom: 80 mA @ 5V (0.4 Watt) without microSD, ethernet link, USB devices or other peripherals.<br>
