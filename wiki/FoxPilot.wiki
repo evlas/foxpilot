@@ -17,9 +17,9 @@ I'm building my quadcopter:<br>
 1 aluminum square tube 1000x10x10 cut and drilled<br>
 2 aluminum sheets opportunely cut and drilled<br>
 <br>
-http://code.google.com/p/foxpilot/source/browse/wiki/images/1.jpg<br>
+http://foxpilot.googlecode.com/svn/wiki/images/1.jpg<br>
 <br>
-http://code.google.com/p/foxpilot/source/browse/wiki/images/2.jpg<br>
+http://foxpilot.googlecode.com/svn/wiki/images/2.jpg<br>
 <br>
-http://code.google.com/p/foxpilot/source/browse/wiki/images/1.jpg<br>
+http://foxpilot.googlecode.com/svn/wiki/images/3.jpg<br>
 <br>
