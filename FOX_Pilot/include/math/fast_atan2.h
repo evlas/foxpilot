@@ -35,10 +35,11 @@
 #include <stdbool.h>
 #include <math.h>
 
+#include <defines_h>
+
 #ifndef FAST_ATAN2_H_
 #define FAST_ATAN2_H_
 
-#define PI  3.1415926535897932384626433832795029
 
 /** @brief Fast @c abs(x)
  ** @param x argument.

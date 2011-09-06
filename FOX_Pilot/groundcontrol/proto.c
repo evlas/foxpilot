@@ -217,7 +217,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			if (ping.target_system == 0) {
 				//&& ping.target_component == 0) {
-				send_mav_ping(ping.seq, ping.target_system, ping.target_component);
+				send_mav_ping(msg.sysid, msg.compid, ping.seq);
 			}
 		}
 		break;
@@ -559,15 +559,97 @@ int handle_message(uint8_t *buf, int dim) {
 		break;
 		case MAVLINK_MSG_ID_WAYPOINT: {
 			mavlink_waypoint_t wp;
-
-			printf("GOT WAYPOINT!\n");
-
 			mavlink_msg_waypoint_decode(&msg, &wp);
 
 			if(wp.target_system == get_param_value(PARAM_SYSTEM_ID)) {
-					send_mav_waypoint_ack(wp.target_system,wp.target_component,set_waypoint(wp));
-			}
+				set_waypoint_timestamp_lastaction();
 
+				//ensure that we are in the correct state and that the first waypoint has id 0 and the following waypoints have the correct ids
+				if (((get_waypoint_current_state() == MAVLINK_WPM_STATE_GETLIST) && (wp.seq == 0))
+						|| ((get_waypoint_current_state() == MAVLINK_WPM_STATE_GETLIST_GETWPS)
+								&& ((wp.seq == get_waypoint_current_wp_id())
+										&& (wp.seq < get_waypoint_current_count())))) {
+
+					set_waypoint_current_state(MAVLINK_WPM_STATE_GETLIST_GETWPS);
+
+					set_waypoint(wp);
+
+					set_waypoint_current_wp_id(wp.seq + 1);
+
+					if((get_waypoint_current_wp_id() == get_waypoint_current_count())
+							&& (get_waypoint_current_state() == MAVLINK_WPM_STATE_GETLIST_GETWPS)) {
+						int i;
+						send_mav_waypoint_ack(msg.sysid, msg.compid, 0);
+
+//						if (get_waypoint_current_active_wp_id() > (get_waypoint_rcv_size()-1)) {
+//							set_waypoint_current_active_wp_id(get_waypoint_rcv_size()-1);
+//						}
+
+						// switch the waypoints list
+						// FIXME CHECK!!!
+						//for (i = 0; i < get_waypoint_current_count(); ++i) {
+						//	wpm.waypoints[i] = wpm.rcv_waypoints[i];
+						//}
+						set_waypoint_size(get_waypoint_current_count());
+
+						//get the new current waypoint
+						for(i = 0; i < get_waypoint_size(); i++) {
+							if (get_waypoint_waypoints_current(i) == 1) {
+								set_waypoint_current_active_wp_id(i);
+
+								set_waypoint_yaw_reached(false);
+								set_waypoint_pos_reached(false);
+								send_mav_waypoint_current(get_waypoint_current_active_wp_id());
+								send_mav_waypoint_setpoint(msg.sysid, msg.compid, i);
+								//wpm.timestamp_firstinside_orbit = 0;
+								set_waypoint_timestamp_firstinside_orbit(0);
+								break;
+							}
+						}
+
+						if (i == get_waypoint_size()) {
+							set_waypoint_current_active_wp_id(-1);
+							set_waypoint_yaw_reached(false);
+							set_waypoint_pos_reached(false);
+							//wpm.timestamp_firstinside_orbit = 0;
+							set_waypoint_timestamp_firstinside_orbit(0);
+						}
+
+						set_waypoint_current_state(MAVLINK_WPM_STATE_IDLE);
+					} else {
+						send_mav_waypoint_request(msg.sysid, msg.compid, get_waypoint_current_wp_id());
+					}
+				} else {
+					if (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE) {
+						//we're done receiving waypoints, answer with ack.
+						send_mav_waypoint_ack(msg.sysid, msg.compid, 0);
+					}
+				}
+			}
+		}
+		break;
+		case MAVLINK_MSG_ID_WAYPOINT_REQUEST: {
+			mavlink_waypoint_request_t wpr;
+
+			mavlink_msg_waypoint_request_decode(&msg, &wpr);
+
+			if(wpr.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+				set_waypoint_timestamp_lastaction();
+
+				//ensure that we are in the correct state and that the first request has id 0 and the following requests have either the last id (re-send last waypoint) or last_id+1 (next waypoint)
+				if (((get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST)
+						&& (wpr.seq == 0))
+						|| ((get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST_SENDWPS)
+								&& ((wpr.seq == get_waypoint_current_wp_id())
+										|| (wpr.seq == (get_waypoint_current_wp_id() + 1)))
+										&& (wpr.seq < get_waypoint_size()))) {
+					printf("ci passo\n");
+
+					set_waypoint_current_state(MAVLINK_WPM_STATE_SENDLIST_SENDWPS);
+					set_waypoint_current_wp_id(wpr.seq);
+					send_mav_waypoint(msg.sysid, msg.compid, wpr.seq);
+				}
+			}
 		}
 		break;
 		case MAVLINK_MSG_ID_WAYPOINT_SET_CURRENT: {
@@ -576,10 +658,30 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_waypoint_set_current_decode(&msg, &wpsc);
 
 			if(wpsc.target_system == get_param_value(PARAM_SYSTEM_ID)) {
-					send_mav_waypoint_ack(wpsc.target_system,wpsc.target_component,set_waypoint_current_active_wp_id(wpsc.seq));
-			}
+				set_waypoint_timestamp_lastaction();
 
+				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE) {
+					if (wpsc.seq < get_waypoint_size()) {
+						int i;
+						set_waypoint_current_active_wp_id(wpsc.seq);
+
+						for(i = 0; i < get_waypoint_size(); i++) {
+							if (i == get_waypoint_current_active_wp_id()) {
+								set_waypoint_waypoints_current(i, true);
+							} else {
+								set_waypoint_waypoints_current(i, false);
+							}
+						}
+						set_waypoint_yaw_reached(false);
+						set_waypoint_pos_reached(false);
+						send_mav_waypoint_current(get_waypoint_current_active_wp_id());
+						send_mav_waypoint_setpoint(msg.sysid, msg.compid, get_waypoint_current_active_wp_id());
+						set_waypoint_timestamp_firstinside_orbit(0);
+					}
+				}
+			}
 		}
+		break;
 		case MAVLINK_MSG_ID_WAYPOINT_REQUEST_LIST: {
 			mavlink_waypoint_request_list_t wprl;
 
@@ -588,24 +690,15 @@ int handle_message(uint8_t *buf, int dim) {
 			if(wprl.target_system == get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
-				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE) {
+
+				if ((get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)
+						|| (get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST)){
 					if (get_waypoint_size() > 0) {
 						set_waypoint_current_state(MAVLINK_WPM_STATE_SENDLIST);
 						set_waypoint_current_active_wp_id(0);
 					}
 					set_waypoint_current_count(get_waypoint_size());
 					send_mav_waypoint_count(msg.sysid, msg.compid, get_waypoint_current_count());
-				}
-				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST) {
-					if (get_waypoint_size() > 0) {
-						int i;
-						for(i=0;i<get_waypoint_size();i++) {
-							int count = get_waypoint_current_count();
-							send_mav_waypoint(msg.sysid, msg.compid, count);
-							set_waypoint_current_count(count-1);
-						}
-						set_waypoint_current_state(MAVLINK_WPM_STATE_IDLE);
-					}
 				}
 			}
 		}
@@ -621,15 +714,17 @@ int handle_message(uint8_t *buf, int dim) {
 				if ((get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)
 						|| ((get_waypoint_current_state() == MAVLINK_WPM_STATE_GETLIST)
 								&& (get_waypoint_current_active_wp_id() == 0))) {
-					if (get_waypoint_current_count() > 0) {
+
+					if (wpc.count > 0) {
 						set_waypoint_current_state(MAVLINK_WPM_STATE_GETLIST);
 						set_waypoint_current_active_wp_id(0);
-						set_waypoint_current_count(get_waypoint_current_count());
+						set_waypoint_current_count(wpc.count);
 
 						set_waypoint_rcv_size(0);
 
 						send_mav_waypoint_request(msg.sysid, msg.compid, get_waypoint_current_active_wp_id());
-					} else if (get_waypoint_current_count() == 0) {
+
+					} else if (wpc.count == 0) {
 						set_waypoint_rcv_size(0);
 						set_waypoint_current_active_wp_id(-1);
 						set_waypoint_yaw_reached(false);
@@ -640,20 +735,39 @@ int handle_message(uint8_t *buf, int dim) {
 		}
 		break;
 		case MAVLINK_MSG_ID_WAYPOINT_CLEAR_ALL: {
-            mavlink_waypoint_clear_all_t wpca;
+			mavlink_waypoint_clear_all_t wpca;
 
-            mavlink_msg_waypoint_clear_all_decode(&msg, &wpca);
+			mavlink_msg_waypoint_clear_all_decode(&msg, &wpca);
 
-            if((wpca.target_system == get_param_value(PARAM_SYSTEM_ID))
-            		&& (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)){
-                set_waypoint_timestamp_lastaction();
+			if((wpca.target_system == get_param_value(PARAM_SYSTEM_ID))
+					&& (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)){
+				set_waypoint_timestamp_lastaction();
 
-                // Delete all waypoints
-                set_waypoint_size(0);
-                set_waypoint_current_active_wp_id(-1);
-                set_waypoint_yaw_reached(false);
-                set_waypoint_pos_reached(false);
-            }
+				// Delete all waypoints
+				set_waypoint_size(0);
+				set_waypoint_current_active_wp_id(-1);
+				set_waypoint_yaw_reached(false);
+				set_waypoint_pos_reached(false);
+			}
+		}
+		break;
+		case MAVLINK_MSG_ID_WAYPOINT_ACK: {
+			mavlink_waypoint_ack_t wpa;
+
+			mavlink_msg_waypoint_ack_decode(&msg, &wpa);
+
+			if(wpa.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+
+				set_waypoint_timestamp_lastaction();
+
+				if ((get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST)
+						|| (get_waypoint_current_state() == MAVLINK_WPM_STATE_SENDLIST_SENDWPS)) {
+					if (get_waypoint_current_wp_id() == (get_waypoint_size()-1)) {
+						set_waypoint_current_state(MAVLINK_WPM_STATE_IDLE);
+						set_waypoint_current_wp_id(0);
+					}
+				}
+			}
 		}
 		break;
 		case MAVLINK_MSG_ID_LOCAL_POSITION_SETPOINT_SET: {
@@ -664,7 +778,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			if (((uint8_t) point.target_system == get_param_value(PARAM_SYSTEM_ID))) {
 				//&& ((uint8_t) point.target_component == get_param_value(PARAM_COMPONENT_ID))) {
-					/*
+				/*
 				if (global_data.param[PARAM_POSITIONSETPOINT_ACCEPT] == 1) {
 					//			global_data.position_setpoint.x = pos.x;
 					//			global_data.position_setpoint.y = pos.y;
@@ -681,7 +795,7 @@ int handle_message(uint8_t *buf, int dim) {
 				mavlink_msg_position_control_setpoint_send(MAVLINK_COMM_1, pos.id,
 						pos.x, pos.y, pos.z, pos.yaw);
 			}
-					 */
+				 */
 			}
 		}
 		break;
@@ -858,7 +972,7 @@ int send_mav_system_time(void) {
 /*
 MAVLINK_MSG_ID_PING 3
  */
-int send_mav_ping(uint32_t seq, uint8_t target_system, uint8_t target_component) {
+int send_mav_ping(uint8_t target_system, uint8_t target_component, uint32_t seq) {
 	int len;
 	mavlink_message_t msg;
 	uint8_t buf[MAV_BUFFER_LENGTH];

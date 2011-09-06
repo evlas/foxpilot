@@ -568,7 +568,12 @@ static void mavlink_wpm_message_handler(const mavlink_message_t* msg)
                 wpm.timestamp_lastaction = now;
 				
                 //ensure that we are in the correct state and that the first request has id 0 and the following requests have either the last id (re-send last waypoint) or last_id+1 (next waypoint)
-                if ((wpm.current_state == MAVLINK_WPM_STATE_SENDLIST && wpr.seq == 0) || (wpm.current_state == MAVLINK_WPM_STATE_SENDLIST_SENDWPS && (wpr.seq == wpm.current_wp_id || wpr.seq == wpm.current_wp_id + 1) && wpr.seq < wpm.size))
+                if ((wpm.current_state == MAVLINK_WPM_STATE_SENDLIST
+                		&& wpr.seq == 0)
+                		|| (wpm.current_state == MAVLINK_WPM_STATE_SENDLIST_SENDWPS
+                				&& (wpr.seq == wpm.current_wp_id
+                						|| wpr.seq == wpm.current_wp_id + 1)
+                						&& wpr.seq < wpm.size))
                 {
                     if (verbose && wpm.current_state == MAVLINK_WPM_STATE_SENDLIST) printf("Got MAVLINK_MSG_ID_WAYPOINT_REQUEST of waypoint %u from %u changing state to MAVLINK_WPM_STATE_SENDLIST_SENDWPS\n", wpr.seq, msg->sysid);
                     if (verbose && wpm.current_state == MAVLINK_WPM_STATE_SENDLIST_SENDWPS && wpr.seq == wpm.current_wp_id + 1) printf("Got MAVLINK_MSG_ID_WAYPOINT_REQUEST of waypoint %u from %u staying in state MAVLINK_WPM_STATE_SENDLIST_SENDWPS\n", wpr.seq, msg->sysid);

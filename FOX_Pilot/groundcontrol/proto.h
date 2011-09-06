@@ -27,7 +27,7 @@ void send_system_state(void);
 int send_mav_heartbeat(void);
 int send_mav_boot(void);
 int send_mav_system_time(void);
-int send_mav_ping(uint32_t seq, uint8_t target_system, uint8_t target_component);
+int send_mav_ping(uint8_t target_system, uint8_t target_component, uint32_t seq);
 int send_mav_system_time_utc(void);
 int send_mav_param_value(uint16_t param_id);
 int send_mav_status(void);
