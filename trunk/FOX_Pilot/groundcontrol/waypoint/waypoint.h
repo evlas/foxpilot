@@ -78,9 +78,7 @@ void init_waypoint(void);
 int set_waypoint(mavlink_waypoint_t waypoint);
 mavlink_waypoint_t get_waypoint(uint16_t seq);
 
-//current_count
-void set_waypoint_current_count(uint16_t size);
-uint16_t get_waypoint_current_count(void);
+
 
 //size
 void set_waypoint_size(uint16_t size);
@@ -91,10 +89,15 @@ uint16_t get_waypoint_max_size(void);
 
 //rcv_size
 void set_waypoint_rcv_size(uint16_t size);
+uint16_t get_waypoint_rcv_size(void);
 
 //current_state
 void set_waypoint_current_state(enum MAVLINK_WPM_STATES state);
 enum MAVLINK_WPM_STATES get_waypoint_current_state(void);
+
+//current_wp_id
+int set_waypoint_current_wp_id(uint16_t wp_id);
+uint16_t get_waypoint_current_wp_id(void);
 
 //current_active_wp_id
 int set_waypoint_current_active_wp_id(uint16_t wp_id);
@@ -116,7 +119,7 @@ void set_waypoint_timestamp_lastoutside_orbit(void);
 uint64_t get_waypoint_timestamp_lastoutside_orbit(void);
 
 //timestamp_firstinside_orbit
-void set_waypoint_timestamp_firstinside_orbit(void);
+void set_waypoint_timestamp_firstinside_orbit(int reset);
 uint64_t get_waypoint_timestamp_firstinside_orbit(void);
 
 //timeout
@@ -139,24 +142,12 @@ void set_waypoint_yaw_reached(bool size);
 void set_waypoint_pos_reached(bool size);
 bool get_waypoint_pos_reached(void);
 
-
-
-
-
-
 void set_waypoint_waypoints_current(uint16_t wp_id, bool value);
-
-
-
-
-
-
-
-
+bool get_waypoint_waypoints_current(uint16_t wp_id);
 
 //////////////////////////////
 
-void send_mav_waypoint_ack(uint8_t sysid, uint8_t compid, uint8_t type);
+void send_mav_waypoint_ack(uint8_t sysid, uint8_t compid, uint8_t result);
 void send_mav_waypoint_current(uint16_t seq);
 void send_mav_waypoint_setpoint(uint8_t sysid, uint8_t compid, uint16_t seq);
 void send_mav_waypoint_count(uint8_t sysid, uint8_t compid, uint16_t count);
