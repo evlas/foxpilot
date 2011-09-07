@@ -14,7 +14,7 @@ I'm building my quadcopter:<br>
 - 1 arduimu v2<br>
 - 1 minissc pololu<br>
 <br>
-1 aluminum square tube 1000x10x10 cut and drilled<br>
+1 aluminum square tube 1000x10x10mm cut and drilled<br>
 2 aluminum sheets opportunely cut and drilled<br>
 <br>
 http://foxpilot.googlecode.com/svn/wiki/images/1.jpg<br>
