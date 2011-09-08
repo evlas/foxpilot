@@ -433,7 +433,7 @@ int handle_message(uint8_t *buf, int dim) {
 					break;
 				case MAV_ACTION_SET_ORIGIN:
 					// If not flying
-					if (! get_sys_state_is_flying()) {
+					if (!sys_state_is_flying()) {
 						gps_set_local_origin();
 						ok_ko=1;
 					}
@@ -2023,7 +2023,7 @@ bool set_sys_state_mode(enum MAV_MODE mode) {
 		return (true);
 	} else if (mode == MAV_MODE_RC_TRAINING) {
 		// Only go into RC training if not flying
-		if (! get_sys_state_is_flying()) {
+		if (!sys_state_is_flying()) {
 			pthread_mutex_lock(&groundcontrol_mutex);
 			groundcontrol_data.state.mav_mode = MAV_MODE_RC_TRAINING;
 			pthread_mutex_unlock(&groundcontrol_mutex);
@@ -2190,7 +2190,7 @@ void set_sys_state_position_fix(uint8_t position_fix) {
  *
  * @return 0 if the system is not flying, 1 if it is flying or flight-ready
  */
-bool get_sys_state_is_flying(void) {
+bool sys_state_is_flying(void) {
 	bool res;
 
 	pthread_mutex_lock(&groundcontrol_mutex);
@@ -2223,7 +2223,7 @@ bool get_sys_state_is_indoor(void) {
 	bool res;
 
 	pthread_mutex_lock(&groundcontrol_mutex);
-	res = groundcontrol_data.state.fly;
+	res = groundcontrol_data.state.indoor;
 	pthread_mutex_unlock(&groundcontrol_mutex);
 
 	return(res);
@@ -2259,12 +2259,11 @@ void update_system_statemachine(void) {
 		set_sys_state_status(MAV_STATE_BOOT);
 	}
 	break;
-	/*
+
 	case MAV_MODE_LOCKED:
 		set_sys_state_nav_mode(MAV_NAV_GROUNDED);
 		set_sys_state_status(MAV_STATE_STANDBY);
 		break;
-	 */
 
 	case MAV_MODE_MANUAL:
 		//global_data.param[PARAM_MIX_POSITION_WEIGHT] = 0;
@@ -2450,14 +2449,18 @@ void set_drop_rate(	uint32_t drop_count, uint32_t success_count) {
 void start_pressure_calibration(void) {};
 
 void gps_set_local_origin(void) {
-	pilota_system_t pilota_g;
+	pilota_location_t pilota_g;
 	gps_t gps_g;
+	imu_t imu_g;
 
 	read_gps_sensori(&gps_g);
+	read_imu_sensori(&imu_g);
 
 	pilota_g.altitude = gps_g.altitude;
 	pilota_g.latitude = gps_g.latitude;
 	pilota_g.longitude = gps_g.longitude;
+
+	pilota_g.heading = imu_g.yaw;
 
 	storeBase(&pilota_g);
 };

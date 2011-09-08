@@ -295,7 +295,8 @@ int p_position_absolute(uint8_t servo, int angle) {
   //this function uses pololu mode command 4 to set absolute position
   //servo is the servo number (typically 0-7)
   //angle is the absolute position from 500 to 5500
-  printf("servo %d angolo %d\n",servo,angle);
+
+  //printf("servo %d angolo %d\n",servo,angle);
   return(p_command((servo/8)+1, servo, setPosA, angle));
 }
 

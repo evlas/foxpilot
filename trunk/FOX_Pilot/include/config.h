@@ -36,6 +36,7 @@
 /***************************************/
 //Battery:
 //#define BATTERY_EVENT 1 		// (boolean) 0 = don't read battery, 1 = read battery voltage (only if you have it wired up!)
+#define MYSIMPLEBATTERIA
 
 /***************************************/
 //Arduimu:

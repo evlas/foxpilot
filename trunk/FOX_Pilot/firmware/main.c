@@ -96,11 +96,11 @@ int main(int argc, char *argv[]) {
 		printf("ERROR; pthread_create(sensori(arduimu))\n");
 		exit(errno);
 	}
-//	conf_mybatteria(BATTERYCHANV, BATTERYCHANA, R1_battery, R2_battery, diodo_battery, Aref_battery, Periodo_battery);
-//	if (pthread_create(&pthr_sensori[1], NULL, mybatteria_loop, NULL)){
-//		printf("ERROR; pthread_create(sensori(batteria))\n");
-//		exit(errno);
-//	}
+	conf_mybatteria(BATTERYCHANV, R1_battery, R2_battery, diodo_battery, Aref_battery, Periodo_battery);
+	if (pthread_create(&pthr_sensori[1], NULL, mybatteria_loop, NULL)){
+		printf("ERROR; pthread_create(sensori(batteria))\n");
+		exit(errno);
+	}
 
 	//Avvio logica di volo
 	if (pthread_create(&pthr_pilota, NULL, pilota_loop, NULL)){
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
 	pthread_join(pthr_groundcontrol[2], NULL);
 	pthread_join(pthr_groundcontrol[3], NULL);
 	pthread_join(pthr_sensori[0], NULL);
-//	pthread_join(pthr_sensori[1], NULL);
+	pthread_join(pthr_sensori[1], NULL);
 	pthread_join(pthr_attuatori[0], NULL);
 	pthread_join(pthr_pilota, NULL);
 

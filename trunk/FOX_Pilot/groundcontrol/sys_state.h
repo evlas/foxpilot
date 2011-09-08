@@ -104,7 +104,8 @@ uint8_t get_sys_state_position_fix(void);
 void set_sys_state_position_fix(uint8_t position_fix);
 
 /** @brief Check if the system is currently in flight mode */
-bool get_sys_state_is_flying(void);
+bool sys_state_is_flying(void);
+
 uint8_t get_sys_state_fly(void);
 void set_sys_state_fly(uint8_t fly);
 

@@ -32,23 +32,30 @@ typedef struct __pilota_system_t {
 	int16_t yaw_out;   		//-10000 <-> 10000
 	int16_t throttle_out;	//-10000 <-> 10000
 
-	int16_t rollspeed;
-	int16_t pitchspeed;
-	int16_t yawspeed;
-	int16_t throttlespeed;
+	float heading;			//rad
 
+//	int16_t rollspeed;
+//	int16_t pitchspeed;
+//	int16_t yawspeed;
+//	int16_t throttlespeed;
+
+//	float altitude_f;
+
+//	int16_t speed;
+//	int64_t time_dt;
+} pilota_system_t;
+
+typedef struct __pilota_location_t {
 	int32_t longitude;
 	int32_t latitude;
 	int16_t altitude;
 
-	float altitude_f;
+	int16_t heading;			//gradi sessagesimali * 100
+} pilota_location_t;
 
-	int16_t speed;
-	int64_t time_dt;
-} pilota_system_t;
 
 typedef struct __pilota_t {
-	pilota_system_t base;
+	pilota_location_t base;		//home
 	pilota_system_t last;
 	pilota_system_t current;
 	groundcontrol_t groundcontrol;
@@ -79,7 +86,7 @@ int16_t get_pilota_throttle(void);
 uint16_t get_pilota_throttle_0100(void);
 
 //Flight Mangler
-void storeBase(pilota_system_t *base);
+void storeBase(pilota_location_t *base);
 
 
 #endif /* PILOTA_H_ */
