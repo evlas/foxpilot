@@ -191,6 +191,9 @@ int processFlightControlQuadXManual(pilota_t *pilota_quad) {
 	return(0);
 }
 
+int processFlightControlQuadXAuto(pilota_t *pilota_quad) {
+
+}
 
 //////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// PLUS MODE //////////////////////////////////
@@ -198,6 +201,11 @@ int processFlightControlQuadXManual(pilota_t *pilota_quad) {
 int processFlightControlQuadPlus(pilota_t *pilota_quad) {
 }
 
+int processFlightControlQuadPlusMaual(pilota_t *pilota_quad) {
+}
+
+int processFlightControlQuadPlusAuto(pilota_t *pilota_quad) {
+}
 
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////// processAttitude //////////////////////////////////
@@ -229,7 +237,7 @@ void processHeading(pilota_t *pilota_quad) {
 	float yaw_incr;
 
 	//pilota_quad->groundcontrol.state.remote.yaw	-0.5 <-> 0.5 rad
-	yaw_incr = pilota_quad->groundcontrol.state.remote.yaw + (pilota_quad->sensori.imu.yaw*D2R/100.0);
+	yaw_incr = pilota_quad->groundcontrol.state.remote.yaw + pilota_quad->last.heading;
 	if (yaw_incr > PI) {
 		yaw_incr -= 2*PI;
 	}
@@ -243,6 +251,7 @@ void processHeading(pilota_t *pilota_quad) {
 			0.0);
 
 	pilota_quad->current.yaw_f = clamp(pilota_quad->current.yaw_f,-0.5,0.5);
+	pilota_quad->current.heading = yaw_incr;
 
 	printf("pilota_quad->current.yaw_f %f\n", pilota_quad->current.yaw_f);
 
@@ -259,7 +268,7 @@ void processThrottle(pilota_t *pilota_quad) {
 
 	pilota_quad->current.throttle_f = clamp(pilota_quad->current.throttle_f,0.0,1.0);
 
-	printf("pilota_quad->current.throttle_f %f\n", pilota_quad->current.throttle_f);
+	printf("pilota_quad->current.throttle_f %f\r\r\r\r", pilota_quad->current.throttle_f);
 }
 
 

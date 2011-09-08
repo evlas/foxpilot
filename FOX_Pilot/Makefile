@@ -16,7 +16,7 @@ SRC_FIRMWARE := firmware/main.c \
 SRC_ATTUATORI := attuatori/pololu/pololu.c
 
 SRC_SENSORI := sensori/arduimu/arduimu.c \
-			   sensori/batteria/mybatteria.c
+			   sensori/batteria/simple_mybatteria/mybatteria.c
 
 SRC_PILOTA := pilota/quad/quad.c
 

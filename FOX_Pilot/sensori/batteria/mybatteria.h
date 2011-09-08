@@ -40,9 +40,9 @@
 #define BATTERYCHANV "/sys/bus/platform/devices/at91_adc/chan0"	//FOX BOARD
 #define BATTERYCHANA "/sys/bus/platform/devices/at91_adc/chan1"	//FOX BOARD
 
-#define R1_battery  15000
-#define R2_battery  7500
-#define diodo_battery 900	//0.9V * 1000
+#define R1_battery  270000
+#define R2_battery  100000
+#define diodo_battery 620	//0.62V * 1000
 #define Aref_battery  3300	//3.3V * 1000
 
 #define Periodo_battery  1000000	//1 secondi
@@ -87,7 +87,12 @@ mybatteria_conf_t batteria_conf;
 //thread
 void *mybatteria_loop(void *ptr);
 
+#ifdef MYBATTERIA
 void conf_mybatteria(char *devicev, char *devicea, int R1, int R2, int diodo, int Aref, int periodo);
+#else
+void conf_mybatteria(char *device, int R1, int R2, int diodo, int Aref, int periodo);
+#endif
+
 int init_mybatteria(mybatteria_t *oldvalue);
 void deinit_mybatteria();
 

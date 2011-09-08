@@ -35,7 +35,7 @@ PID_t pitchPID;
 PID_t yawPID;
 
 void *pilota_loop(void *ptr) {
-	int res_sens = 0, res_grct = 0, res_attu = 0, attu_appl = 0;
+	int i, res_sens = 0, res_grct = 0, res_attu = 0, attu_appl = 0;
 	long delta = 0, loop_d = 0;
 	uint64_t t1, t2;
 
@@ -65,6 +65,15 @@ void *pilota_loop(void *ptr) {
 		case MAV_MODE_UNINIT:     ///< System is in undefined state
 			break;
 		case MAV_MODE_LOCKED:     ///< Motors are blocked, system is safe
+			for(i=0;i<NUMS_ATTUATORI;i++) {
+				if ((pilota_data.attuatori.id[i] = 0)
+						|| (pilota_data.attuatori.id[i] = 1)
+						|| (pilota_data.attuatori.id[i] = 2)
+						|| (pilota_data.attuatori.id[i] = 3)) {
+					pilota_data.attuatori.value[i] = pilota_data.attuatori.min[i];
+				}
+			}
+			write_pilota();
 			break;
 		case MAV_MODE_MANUAL:     ///< System is allowed to be active, under manual (RC) control
 			if(processFlightControlQuadXManual(&pilota_data)==0){
@@ -77,6 +86,9 @@ void *pilota_loop(void *ptr) {
 			}
 			break;
 		case MAV_MODE_AUTO:       ///< System is allowed to be active, under autonomous control and navigation
+			if(processFlightControlQuadXAuto(&pilota_data)==0){
+				write_pilota();
+			}
 			break;
 		case MAV_MODE_TEST1:      ///< Generic test mode, for custom use
 			break;
@@ -87,6 +99,7 @@ void *pilota_loop(void *ptr) {
 		case MAV_MODE_READY:      ///< System is ready, motors are unblocked, but controllers are inactive
 			break;
 		case MAV_MODE_RC_TRAINING: ///< System is blocked, only RC valued are read and reported back
+			processFlightControlQuadXManual(&pilota_data);
 			break;
 		}
 
@@ -181,10 +194,10 @@ uint16_t get_pilota_throttle_0100(void) {
 }
 
 //Flight Mangler
-void storeBase(pilota_system_t *base) {
+void storeBase(pilota_location_t *base) {
 	pthread_mutex_lock(&pilota_mutex);
 
-	memcpy(&(pilota_data.base),base,sizeof(pilota_system_t));
+	memcpy(&(pilota_data.base),base,sizeof(pilota_location_t));
 
 	pthread_mutex_unlock(&pilota_mutex);
 }

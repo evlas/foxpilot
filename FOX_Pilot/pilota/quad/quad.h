@@ -27,15 +27,27 @@
 
 int processFlightControlQuadPlusManual(pilota_t *pilota_quad);
 int processFlightControlQuadPlus(pilota_t *pilota_quad);
+int processFlightControlQuadAuto(pilota_t *pilota_quad);
 
 int processFlightControlQuadXManual(pilota_t *pilota_quad);
 int processFlightControlQuadX(pilota_t *pilota_quad);
+int processFlightControlQuadXAuto(pilota_t *pilota_quad);
 
+
+//GUIDED
 void processAttitude(pilota_t *pilota_quad);
 void processHeading(pilota_t *pilota_quad);
 void processThrottle(pilota_t *pilota_quad);
 
+//AUTO
 void processAltitude(pilota_t *pilota_quad);
+void processPosition(pilota_t *pilota_quad);
+
+float get_bearing(pilota_location_t *start,pilota_location_t *end);			//direzione
+float get_distance(pilota_location_t *start,pilota_location_t *end);		//distanza
+float get_alt_distance(pilota_location_t *start,pilota_location_t *end);	//altezza
+
+
 
 
 
