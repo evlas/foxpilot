@@ -19,6 +19,7 @@ void init_protocol();
 
 //Input
 int handle_message(uint8_t *buf, int dim);
+int handle_action(mavlink_message_t msg);
 
 //Output
 /*Send Heartbeat */
@@ -48,12 +49,12 @@ int send_mav_servo_output_raw(void);
 uint64_t microsSinceEpoch();
 
 //VARIE
-void start_gyro_calibration(void);
 void param_write_all(void);
 void param_read_all(void);
-void start_pressure_calibration(void);
 void gps_set_local_origin(void);
-void start_mag_calibration(void);
+//void start_mag_calibration(void);
+//void start_gyro_calibration(void);
+//void start_pressure_calibration(void);
 
 int64_t sys_time_clock_get_unix_offset(void);
 void sys_time_clock_set_unix_offset(int64_t offset);

@@ -81,7 +81,7 @@ void *pilota_loop(void *ptr) {
 			}
 			break;
 		case MAV_MODE_GUIDED:     ///< System is allowed to be active, under autonomous control, manual setpoint
-			if(processFlightControlQuadX(&pilota_data)==0){
+			if(processFlightControlQuadXGuided(&pilota_data)==0){
 				write_pilota();
 			}
 			break;

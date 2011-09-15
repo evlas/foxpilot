@@ -132,8 +132,6 @@ struct global_struct {
  */
 typedef struct __groundcontrol_t {
 	sys_state_t state;                        ///< Current vehicle state representation
-	uint16_t cpu_usage;                       ///< CPU usage, 0 = 0%, 1000 = 100%
-	uint16_t cpu_peak;                        ///< CPU peak, 0 = 0%, 1000 = 100%
 //	uint8_t motor_block;                      ///< Position of motor block switch
 	comm_t comm;
 	float param[ONBOARD_PARAM_COUNT];
