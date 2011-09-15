@@ -19,7 +19,16 @@ typedef struct __data_stream_t {
 	uint16_t rate;
 } data_stream_t;
 
-enum {
+enum FLY_STATE {
+	FLY_IDLE,
+	FLY_STARTING,
+	FLY_TAKE_OFF,
+	FLY_FLYING,
+	FLY_LANDING,//open loop 6
+	FLY_END// 8
+};
+/*
+	enum {
 	FLY_WAIT_MOTORS,
 	FLY_RAMP_UP,//open loop
 	FLY_STARTING,
@@ -30,7 +39,7 @@ enum {
 	FLY_RAMP_DOWN,//open loop 7
 	FLY_GROUNDED// 8
 } fly_state_id;
-
+*/
 /*
 typedef struct {
 	uint8_t position_fix;
@@ -57,17 +66,19 @@ typedef struct {
 typedef struct {
 	enum MAV_MODE mav_mode;
 	enum MAV_NAV nav_mode;
+	enum MAV_NAV prevnav_mode;
 	enum MAV_TYPE type;
 	enum MAV_AUTOPILOT_TYPE autopilot;
 	enum MAV_STATE status;
 	enum MAV_STATE prevstatus;
-	enum MAV_NAV prevnav_mode;
 
 	bool failsafe;
 	bool indoor;
 
 	uint8_t position_fix;
-	uint8_t fly;
+	enum FLY_STATE fly;
+	enum FLY_STATE prevfly;
+//	uint8_t fly;
 
 	manual_ctrl_t remote;
 } sys_state_t;
@@ -106,8 +117,10 @@ void set_sys_state_position_fix(uint8_t position_fix);
 /** @brief Check if the system is currently in flight mode */
 bool sys_state_is_flying(void);
 
-uint8_t get_sys_state_fly(void);
-void set_sys_state_fly(uint8_t fly);
+enum FLY_STATE get_sys_state_fly(void);
+void set_sys_state_fly(enum FLY_STATE fly);
+//uint8_t get_sys_state_fly(void);
+//void set_sys_state_fly(uint8_t fly);
 
 /** @brief Check if the system is indoor flight mode */
 bool get_sys_state_is_indoor(void);
@@ -119,10 +132,7 @@ bool set_sys_state_manual_ctrl(manual_ctrl_t mctrl);
 
 //////////////////////////////////////////////////////////////////////////
 
-uint16_t get_peak_cpu_load(uint64_t loop_start_time,
-		uint64_t loop_stop_time, uint64_t min_mainloop);
-uint16_t get_avg_cpu_load(uint64_t loop_start_time,
-		uint64_t loop_stop_time, uint64_t min_mainloop);
+uint16_t get_avg_cpu_load(void);
 
 void update_system_statemachine();
 

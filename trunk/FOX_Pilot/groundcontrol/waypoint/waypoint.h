@@ -76,8 +76,7 @@ void init_waypoint(void);
 
 //mavlink_waypoint_t waypoints[MAVLINK_WPM_MAX_WP_COUNT];      ///< Currently active waypoints
 int set_waypoint(mavlink_waypoint_t waypoint);
-mavlink_waypoint_t get_waypoint(uint16_t seq);
-
+mavlink_waypoint_t *get_waypoint(uint16_t seq, mavlink_waypoint_t *waypoint);
 
 
 //size

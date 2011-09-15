@@ -5,6 +5,8 @@
  *      Author: vito
  */
 #include <stdio.h>
+
+#include <math/range.h>
 #include "../proto.h"
 
 #include "waypoint.h"
@@ -40,7 +42,8 @@ void *waypoint_loop (void *ptr) {
 		//check if the current waypoint was reached
 		if (get_waypoint_pos_reached() && (!get_waypoint_idle())) {
 			if (get_waypoint_current_active_wp_id() < get_waypoint_size()) {
-				mavlink_waypoint_t cur_wp = get_waypoint(get_waypoint_current_active_wp_id());
+				mavlink_waypoint_t cur_wp;
+				get_waypoint(get_waypoint_current_active_wp_id(), &cur_wp);
 
 				if (get_waypoint_timestamp_firstinside_orbit() == 0) {
 					// Announce that last waypoint was reached
@@ -118,12 +121,11 @@ int set_waypoint(mavlink_waypoint_t wp) {
 	pthread_mutex_unlock(&waypoint_mutex);
 	return(res);
 }
-mavlink_waypoint_t get_waypoint(uint16_t seq) {
-	mavlink_waypoint_t res;
+mavlink_waypoint_t *get_waypoint(uint16_t seq, mavlink_waypoint_t *waypoint) {
 	pthread_mutex_lock(&waypoint_mutex);
-	res = waypoint_data.waypoints[seq];
+	memcpy(waypoint, &(waypoint_data.waypoints[seq]), sizeof(mavlink_waypoint_t));
 	pthread_mutex_unlock(&waypoint_mutex);
-	return(res);
+	return(waypoint);
 }
 
 //current_count
@@ -248,7 +250,7 @@ uint16_t get_waypoint_current_wp_id(void) {
 int set_waypoint_current_active_wp_id(uint16_t wp_id) {
 	int res = 0;
 
-	if (wp_id<get_waypoint_max_size()) {
+	if (wp_id < get_waypoint_max_size()){
 		pthread_mutex_lock(&waypoint_mutex);
 		waypoint_data.current_active_wp_id = wp_id;
 		pthread_mutex_unlock(&waypoint_mutex);
@@ -453,7 +455,7 @@ void send_mav_waypoint(uint8_t sysid, uint8_t compid, uint16_t seq) {
 	mavlink_waypoint_t waypoint;
 
 	if (seq < get_waypoint_size()) {
-		waypoint = get_waypoint(seq);
+		get_waypoint(seq, &waypoint);
 
 		mavlink_msg_waypoint_pack(get_param_value(PARAM_SYSTEM_ID),
 				MAV_COMP_ID_WAYPOINTPLANNER,
