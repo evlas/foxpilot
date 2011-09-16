@@ -8,14 +8,16 @@ Fox Board G20 based autopilot for mulitrotor craft, from quadcopters to traditio
 = Details =
 
 I'm building my quadcopter:<br>
-- 1 FoxBoard G20 400MHz 64MB RAM<br>
-- 4 emax cf 2822<br>
+- 1 FoxBoard G20 400MHz 64MB RAM	(€130)<br>
+- 4 emax cf 2822				(€ 30 4 x 2822 + 4 x ESC)<br>	
 - 4 esc unbranded<br>
-- 1 arduimu v2<br>
-- 1 minissc pololu<br>
+- 1 arduimu v2					(€ 90)<br>
+- 1 minissc pololu				(€ 15)<br>
 <br>
-1 aluminum square tube 1000x10x10mm cut and drilled<br>
-2 aluminum sheets opportunely cut and drilled<br>
+Spare part aluminium:				(€  6)<br>
+- 1 aluminum square tube 1000x10x10mm cut and drilled<br> 
+- 2 aluminum sheets opportunely cut and drilled<br>
+
 <br>
 http://foxpilot.googlecode.com/svn/wiki/images/1.jpg<br>
 <br>
