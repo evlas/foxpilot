@@ -174,6 +174,9 @@ int handle_message(uint8_t *buf, int dim) {
 
 		printf("msg.msgid %d\n",msg.msgid);
 
+		set_waypoint_current_partner_sysid(msg.sysid);
+		set_waypoint_current_partner_compid(msg.compid);
+
 		switch(msg.msgid) {
 		case MAVLINK_MSG_ID_HEARTBEAT: {
 			//			mavlink_heartbeat_t heartbeat;
@@ -315,6 +318,42 @@ int handle_message(uint8_t *buf, int dim) {
 			}
 		}
 		break;
+
+
+		case MAVLINK_MSG_ID_LOCAL_POSITION: {
+            if(get_waypoint_current_active_wp_id() < get_waypoint_size()) {
+                mavlink_waypoint_t wp;
+                get_waypoint(get_waypoint_current_active_wp_id(), &wp);
+
+                if(wp.frame == MAV_FRAME_LOCAL_ENU) {
+                    mavlink_local_position_t pos;
+                    float orbit, dist;
+                    mavlink_msg_local_position_decode(&msg, &pos);
+                    //if (debug) printf("Received new position: x: %f | y: %f | z: %f\n", pos.x, pos.y, pos.z);
+
+                    set_waypoint_pos_reached(false);
+
+                    // compare current position (given in message) with current waypoint
+                    orbit = wp.param1;
+
+                    if (wp.param2 == 0) {
+						// FIXME segment distance
+                        dist = waypoint_distance_to_segment(get_waypoint_current_active_wp_id(), pos.x, pos.y, pos.z);
+                    } else {
+                        dist = waypoint_distance_to_point(get_waypoint_current_active_wp_id(), pos.x, pos.y, pos.z);
+                    }
+
+                    if ((dist >= 0.f) && (dist <= orbit) && (get_waypoint_yaw_reached())) {
+                    	set_waypoint_pos_reached(true);
+                    }
+                }
+            }
+
+        }
+		break;
+
+
+
 		case MAVLINK_MSG_ID_WAYPOINT: {
 			mavlink_waypoint_t wp;
 			mavlink_msg_waypoint_decode(&msg, &wp);
@@ -875,7 +914,7 @@ int handle_action(mavlink_message_t msg) {
 			set_sys_state_nav_mode(MAV_NAV_LOITER);
 			ok_ko=1;
 		} else {
-			send_mav_statustext(0, "HALT Impossibile", 16);
+			send_mav_statustext(0, "LOITER Impossibile", 18);
 		}
 		break;
 	case MAV_ACTION_SET_ORIGIN:
@@ -2463,6 +2502,7 @@ uint16_t get_avg_cpu_load(void) {
 	uint16_t res=0;
 	double loadavg[3];
 
+	//loadavg[0]=0;
 	processi = getloadavg(loadavg, 3);
 
 	res = clamp(loadavg[0]*1000,0,1000);
