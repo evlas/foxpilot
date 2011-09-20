@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include <math/range.h>
+#include <math/mav_vect.h>
 #include "../proto.h"
 
 #include "waypoint.h"
@@ -34,10 +35,10 @@ void *waypoint_loop (void *ptr) {
 			}
 		}
 
-		//		if(((now - get_waypoint_timestamp_last_send_setpoint()) > get_waypoint_delay_setpoint())
-		//				&& (get_waypoint_current_active_wp_id() < get_waypoint_size())) {
-		//			send_mav_waypoint_setpoint(sysid, compid, get_waypoint_current_active_wp_id());
-		//		}
+		if(((now - get_waypoint_timestamp_last_send_setpoint()) > get_waypoint_delay_setpoint())
+				&& (get_waypoint_current_active_wp_id() < get_waypoint_size())) {
+			send_mav_waypoint_setpoint(get_waypoint_current_partner_sysid(), get_waypoint_current_partner_compid(), get_waypoint_current_active_wp_id());
+		}
 
 		//check if the current waypoint was reached
 		if (get_waypoint_pos_reached() && (!get_waypoint_idle())) {
@@ -70,7 +71,7 @@ void *waypoint_loop (void *ptr) {
 						// Fly to next waypoint
 						set_waypoint_timestamp_firstinside_orbit(0);
 						send_mav_waypoint_current(get_waypoint_current_active_wp_id());
-						//send_mav_waypoint_setpoint(sysid, compid, get_waypoint_current_active_wp_id());
+						send_mav_waypoint_setpoint(get_waypoint_current_partner_sysid(), get_waypoint_current_partner_compid(), get_waypoint_current_active_wp_id());
 
 						set_waypoint_waypoints_current(get_waypoint_current_active_wp_id(), true);
 
@@ -95,21 +96,28 @@ void *waypoint_loop (void *ptr) {
 void init_waypoint(void) {
 	// Set all waypoints to zero
 	pthread_mutex_lock(&waypoint_mutex);
-	// Set count to zero
-	waypoint_data.current_count = 0;
+
 	waypoint_data.size = 0;
 	waypoint_data.max_size = MAVLINK_WPM_MAX_WP_COUNT;
+	//waypoint_data.rcv_size;
 	waypoint_data.current_state = MAVLINK_WPM_STATE_IDLE;
+	//waypoint_data.current_wp_id;							///< Waypoint in current transmission
+	waypoint_data.current_active_wp_id = -1;				///< id of current waypoint
+	waypoint_data.current_count = 0;						/// Set count to zero
 	waypoint_data.timestamp_lastaction = 0;
 	waypoint_data.timestamp_last_send_setpoint = 0;
-	waypoint_data.timeout = MAVLINK_WPM_PROTOCOL_TIMEOUT_DEFAULT;
-	waypoint_data.delay_setpoint = MAVLINK_WPM_SETPOINT_DELAY_DEFAULT;
-	waypoint_data.idle = false;      						///< indicates if the system is following the waypoints or is waiting
-	waypoint_data.current_active_wp_id = -1;				///< id of current waypoint
-	waypoint_data.yaw_reached = false;						///< boolean for yaw attitude reached
-	waypoint_data.pos_reached = false;						///< boolean for position reached
 	waypoint_data.timestamp_lastoutside_orbit = 0;			///< timestamp when the MAV was last outside the orbit or had the wrong yaw value
 	waypoint_data.timestamp_firstinside_orbit = 0;			///< timestamp when the MAV was the first time after a waypoint change inside the orbit and had the correct yaw value
+	waypoint_data.timeout = MAVLINK_WPM_PROTOCOL_TIMEOUT_DEFAULT;
+	waypoint_data.delay_setpoint = MAVLINK_WPM_SETPOINT_DELAY_DEFAULT;
+	//waypoint_data.accept_range_yaw;
+	//waypoint_data.accept_range_distance;
+	waypoint_data.yaw_reached = false;						///< boolean for yaw attitude reached
+	waypoint_data.pos_reached = false;						///< boolean for position reached
+	waypoint_data.idle = false;      						///< indicates if the system is following the waypoints or is waiting
+	waypoint_data.current_partner_sysid = 0;
+	waypoint_data.current_partner_compid = 0;
+
 	pthread_mutex_unlock(&waypoint_mutex);
 }
 
@@ -199,6 +207,13 @@ void set_waypoint_timestamp_last_send_setpoint(void) {
 	waypoint_data.timestamp_last_send_setpoint = microsSinceEpoch();
 	pthread_mutex_unlock(&waypoint_mutex);
 }
+uint64_t get_waypoint_timestamp_last_send_setpoint(void) {
+	uint64_t res;
+	pthread_mutex_lock(&waypoint_mutex);
+	res = waypoint_data.timestamp_last_send_setpoint;
+	pthread_mutex_unlock(&waypoint_mutex);
+	return(res);
+}
 
 //timeout
 void set_waypoint_timeout(uint64_t timeout) {
@@ -215,6 +230,14 @@ uint64_t get_waypoint_timeout(void) {
 }
 
 //delay_setpoint
+void set_waypoint_delay_setpoint(uint32_t delay) {}
+uint32_t get_waypoint_delay_setpoint(void) {
+	uint32_t res;
+	pthread_mutex_lock(&waypoint_mutex);
+	res = waypoint_data.delay_setpoint;
+	pthread_mutex_unlock(&waypoint_mutex);
+	return(res);
+}
 
 //idle
 bool get_waypoint_idle(void) {
@@ -272,6 +295,13 @@ void set_waypoint_yaw_reached(bool size) {
 	pthread_mutex_lock(&waypoint_mutex);
 	waypoint_data.yaw_reached = size;
 	pthread_mutex_unlock(&waypoint_mutex);
+}
+bool get_waypoint_yaw_reached(void) {
+	bool res;
+	pthread_mutex_lock(&waypoint_mutex);
+	res = waypoint_data.yaw_reached;
+	pthread_mutex_unlock(&waypoint_mutex);
+	return(res);
 }
 
 //pos_reached
@@ -345,6 +375,158 @@ bool get_waypoint_waypoints_current(uint16_t wp_id) {
 	res = waypoint_data.waypoints[wp_id].current;
 	pthread_mutex_unlock(&waypoint_mutex);
 	return(res);
+}
+
+void set_waypoint_current_partner_sysid(uint8_t sysid){
+	pthread_mutex_lock(&waypoint_mutex);
+	waypoint_data.current_partner_sysid = sysid;
+	pthread_mutex_unlock(&waypoint_mutex);
+}
+uint8_t get_waypoint_current_partner_sysid(void){
+	uint8_t res;
+	pthread_mutex_lock(&waypoint_mutex);
+	res = waypoint_data.current_partner_sysid;
+	pthread_mutex_unlock(&waypoint_mutex);
+	return(res);
+}
+
+void set_waypoint_current_partner_compid(uint8_t compid){
+	pthread_mutex_lock(&waypoint_mutex);
+	waypoint_data.current_partner_compid = compid;
+	pthread_mutex_unlock(&waypoint_mutex);
+}
+uint8_t get_waypoint_current_partner_compid(void){
+	uint8_t res;
+	pthread_mutex_lock(&waypoint_mutex);
+	res = waypoint_data.current_partner_compid;
+	pthread_mutex_unlock(&waypoint_mutex);
+	return(res);
+}
+
+///////////////////////////////////////////////////
+
+void update_active_waypoint(uint16_t id) {
+	int i;
+
+	set_waypoint_timestamp_lastaction();
+
+	if (id < get_waypoint_size()) {
+		set_waypoint_current_active_wp_id(id);
+
+		for(i = 0; i < get_waypoint_size(); i++) {
+			if (i == get_waypoint_current_active_wp_id()) {
+				set_waypoint_waypoints_current(i, true);
+			} else {
+				set_waypoint_waypoints_current(i, false);
+			}
+		}
+
+		set_waypoint_yaw_reached(false);
+		set_waypoint_pos_reached(false);
+
+		send_mav_waypoint_current(get_waypoint_current_active_wp_id());
+		//send_mav_waypoint_setpoint(msg.sysid, msg.compid, get_waypoint_current_active_wp_id());
+
+		set_waypoint_timestamp_firstinside_orbit(0);
+	}
+}
+
+/* Questa funzione calcola la distanza tra due punti
+sulla superficie terrestre, date le coordinate in
+latitudine e longitudine espresse in
+gradi decimali */
+float distance_to_point (float latA, float lonA, float altA, float latB, float lonB, float altB) {
+      /* Definisce le costanti e le variabili */
+      const float R = 6372795.477598;  //raggio della terra in metri
+      float lat_alfa, lat_beta;
+      float lon_alfa, lon_beta;
+      double fi;
+      double p, d, dl;
+
+      /* Converte i gradi in radianti */
+      lat_alfa = latA * D2R;
+      lat_beta = latB * D2R;
+      lon_alfa = lonA * D2R;
+      lon_beta = lonB * D2R;
+
+      /* Calcola l'angolo compreso fi */
+      fi = fabs(lon_alfa - lon_beta);
+      /* Calcola il terzo lato del triangolo sferico */
+      p = acos(sin(lat_beta) * sin(lat_alfa) +
+        cos(lat_beta) * cos(lat_alfa) * cos(fi));
+      /* Calcola la distanza sulla superficie
+      terrestre R = ~6371 km */
+      dl = p * R;
+
+      d = sqrt(pow(d,2)+pow(altA - altB,2));
+
+      return((float)d);
+}
+
+float waypoint_distance_to_point (uint16_t id, float lat, float lon, float alt) {
+	mavlink_waypoint_t wp;
+
+	if (id < get_waypoint_size()) {
+		get_waypoint(id, &wp);
+
+		return(distance_to_point(wp.x, wp.y ,wp.z, lat, lon, alt));
+	}
+	return(-1.0);
+}
+
+float waypoint_distance_to_segment (uint16_t id, float lat, float lon, float alt) {
+	mavlink_waypoint_t curwp, nextwp;
+
+	if (id < get_waypoint_size()) {
+		float_vect3 A;
+		float_vect3 B;
+		float_vect3 C;
+
+		get_waypoint(id, &curwp);
+
+		A.x = curwp.x;
+		A.y = curwp.y;
+		A.z = curwp.z;
+
+		C.x = lat;
+		C.y = lon;
+		C.z = alt;
+
+		// seq not the second last waypoint
+		if ((uint16_t)(id+1) < get_waypoint_size()) {
+			float r;
+			get_waypoint(id+1, &nextwp);
+
+			B.x = nextwp.x;
+			B.y = nextwp.y;
+			B.z = nextwp.z;
+
+			//const float r = (B-A).dot(C-A) / (B-A).lengthSquared();
+			r = operator_per(operator_minus (B,A), operator_minus (C,A));
+			r = r / operator_square(operator_minus (B,A));
+
+			if (r >= 0 && r <= 1) {
+				float_vect3 P;
+
+				//const PxVector3 P(A + r*(B-A));
+				P = operator_plus(A,operator_per_scalar(r,operator_minus(B,A)));
+
+				//return (P-C).length();
+				return(distance_to_point(P.x, P.y ,P.z, C.x, C.y ,C.z));
+			} else if (r < 0.f) {
+				//return (C-A).length();
+				return(distance_to_point(C.x, C.y ,C.z, A.x, A.y ,A.z));
+			} else {
+				//return (C-B).length();
+				return(distance_to_point(C.x, C.y ,C.z, B.x, B.y ,B.z));
+
+			}
+		} else {
+			//return (C-A).length();
+			return(distance_to_point(C.x, C.y ,C.z, A.x, A.y ,A.z));
+		}
+	}
+	return(-1.0);
 }
 
 

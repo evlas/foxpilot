@@ -165,19 +165,6 @@ int processFlightControlQuadXAuto(pilota_t *pilota_quad) {
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_IDLE) {
 			get_waypoint(get_waypoint_current_active_wp_id(), &waypoint);
 
-			printf("waypoint_active.autocontinue %d\n", waypoint.autocontinue);
-			printf("waypoint_active.command %d\n", waypoint.command);
-			printf("waypoint_active.current %d\n", waypoint.current);
-			printf("waypoint_active.frame %d\n", waypoint.frame);
-			printf("waypoint_active.param1 %f\n", waypoint.param1);
-			printf("waypoint_active.param2 %f\n", waypoint.param2);
-			printf("waypoint_active.param3 %f\n", waypoint.param3);
-			printf("waypoint_active.param4 %f\n", waypoint.param4);
-			printf("waypoint_active.seq %d\n", waypoint.seq);
-			printf("waypoint_active.x %f\n", waypoint.x);
-			printf("waypoint_active.y %f\n", waypoint.y);
-			printf("waypoint_active.z %f\n", waypoint.z);
-
 			if ((waypoint.current == 1) || (waypoint.command == MAV_CMD_NAV_TAKEOFF)) {
 				set_sys_state_fly(FLY_TAKE_OFF);
 			}
@@ -188,21 +175,8 @@ int processFlightControlQuadXAuto(pilota_t *pilota_quad) {
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_STARTING) {
 			get_waypoint(get_waypoint_current_active_wp_id(), &waypoint);
 
-			printf("waypoint_active.autocontinue %d\n", waypoint.autocontinue);
-			printf("waypoint_active.command %d\n", waypoint.command);
-			printf("waypoint_active.current %d\n", waypoint.current);
-			printf("waypoint_active.frame %d\n", waypoint.frame);
-			printf("waypoint_active.param1 %f\n", waypoint.param1);
-			printf("waypoint_active.param2 %f\n", waypoint.param2);
-			printf("waypoint_active.param3 %f\n", waypoint.param3);
-			printf("waypoint_active.param4 %f\n", waypoint.param4);
-			printf("waypoint_active.seq %d\n", waypoint.seq);
-			printf("waypoint_active.x %f\n", waypoint.x);
-			printf("waypoint_active.y %f\n", waypoint.y);
-			printf("waypoint_active.z %f\n", waypoint.z);
-
 			if (take_off(pilota_quad, waypoint.z*100, waypoint.frame) == 0) {
-				set_waypoint_current_active_wp_id(get_waypoint_current_active_wp_id()+1);
+				update_active_waypoint(get_waypoint_current_active_wp_id()+1);
 				set_sys_state_fly(FLY_FLYING);
 			}
 		}
@@ -685,3 +659,8 @@ int landing(pilota_t *pilota_quad) {
 int16_t angle_to_10000(float angle) {
 	return (angle * 10000/PI);
 }
+
+
+
+
+

@@ -138,23 +138,8 @@ mybatteria_t  misura_mybatteria(mybatteria_t oldvalue) {
 		return(newvalue);
 	}
 
-//	batteryVoltage = filterSmooth(readBatteryVoltage(), oldvalue.volt, 50);
 	batteryVoltage = readBatteryVoltage();
 
-/*	if(batteryVoltage < 370) {             //lipo 1s
-		batteryVoltageMax = 420;
-		batteryVoltageMin = 320;
-	} else if (batteryVoltage < (370*2)) { //lipo 2s
-		batteryVoltageMax = 420*2;
-		batteryVoltageMin = 320*2;
-	} else if (batteryVoltage < (370*3)) { //lipo 3s
-		batteryVoltageMax = 420*3;
-		batteryVoltageMin = 320*3;
-	} else if (batteryVoltage < (370*4)) { //lipo 4s
-		batteryVoltageMax = 420*4;
-		batteryVoltageMin = 320*4;
-	}
-*/
 	if (batteryVoltage < oldvalue.volt_min) {
 		lowBatteryEvent();
 	}
@@ -162,12 +147,14 @@ mybatteria_t  misura_mybatteria(mybatteria_t oldvalue) {
 	newvalue.volt = batteryVoltage;
 	newvalue.stato = ((clamp(newvalue.volt,newvalue.volt_min,newvalue.volt_max) - newvalue.volt_min)*10000)/(newvalue.volt_max-newvalue.volt_min);
 
+	printf("batteria %d\n",batteryVoltage);
+
 	return(newvalue);
 }
 
 int readBatteryVoltage() {
 	int n, res;
-	//fread(&n, sizeof(int), 1, fd_batteria);
+
 	res = fscanf(batteria_conf.fd_batteriav, "%d", &n);
 	rewind(batteria_conf.fd_batteriav);
 

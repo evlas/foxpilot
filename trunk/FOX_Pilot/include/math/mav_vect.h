@@ -72,5 +72,43 @@ typedef struct{
   int32_t z;
 } int32_vect4;
 
+static float_vect3 operator_minus (float_vect3 l, float_vect3 r) {
+	float_vect3 ret;
+
+	ret.x = l.x - r.x;
+	ret.y = l.y - r.y;
+	ret.z = l.z - r.z;
+
+	return (ret);
+}
+
+static float_vect3 operator_plus (float_vect3 l, float_vect3 r) {
+	float_vect3 ret;
+
+	ret.x = l.x + r.x;
+	ret.y = l.y + r.y;
+	ret.z = l.z + r.z;
+
+	return (ret);
+}
+
+static float operator_per(float_vect3 l, float_vect3 r) {
+	return (l.x*r.x + l.y*r.y + l.z*r.z);
+}
+
+static float_vect3 operator_per_scalar(float l, float_vect3 r) {
+	float_vect3 ret;
+
+	ret.x = l * r.x;
+	ret.y = l * r.y;
+	ret.z = l * r.z;
+
+	return (ret);
+}
+
+static float operator_square(float_vect3 l) {
+	return (l.x*l.x + l.y*l.y + l.z*l.z);
+}
+
 #endif /* MAV_VECT_H_ */
 

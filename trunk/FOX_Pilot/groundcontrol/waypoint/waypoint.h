@@ -33,8 +33,7 @@ enum MAVLINK_WPM_CODES
 };
 
 /* WAYPOINT MANAGER - MISSION LIB */
-#define MAVLINK_WPM_MAX_WP_COUNT 100
-#define MAVLINK_WPM_CONFIG_IN_FLIGHT_UPDATE				///< Enable double buffer and in-flight updates
+#define MAVLINK_WPM_MAX_WP_COUNT 				100
 #define MAVLINK_WPM_SYSTEM_ID 					1
 #define MAVLINK_WPM_COMPONENT_ID 				1
 #define MAVLINK_WPM_PROTOCOL_TIMEOUT_DEFAULT 	2000000
@@ -43,27 +42,34 @@ enum MAVLINK_WPM_CODES
 
 typedef struct __mavlink_waypoint_storage_t {
 	mavlink_waypoint_t waypoints[MAVLINK_WPM_MAX_WP_COUNT];      ///< Currently active waypoints
-#ifdef MAVLINK_WPM_CONFIG_IN_FLIGHT_UPDATE
-	mavlink_waypoint_t rcv_waypoints[MAVLINK_WPM_MAX_WP_COUNT];  ///< Receive buffer for next waypoints
-#endif
 	uint16_t size;
 	uint16_t max_size;
 	uint16_t rcv_size;
+
 	enum MAVLINK_WPM_STATES current_state;
-	uint16_t current_wp_id;							///< Waypoint in current transmission
-	uint16_t current_active_wp_id;					///< Waypoint the system is currently heading towards
+
+	uint16_t current_wp_id;							///< Waypoint in current transmission (used to trasmit to gcs)
+	uint16_t current_active_wp_id;					///< id of current waypoint
 	uint16_t current_count;
+
 	uint64_t timestamp_lastaction;
 	uint64_t timestamp_last_send_setpoint;
-	uint64_t timestamp_firstinside_orbit;
-	uint64_t timestamp_lastoutside_orbit;
+	uint64_t timestamp_firstinside_orbit;			///< timestamp when the MAV was the first time after a waypoint change inside the orbit and had the correct yaw value
+	uint64_t timestamp_lastoutside_orbit;			///< timestamp when the MAV was last outside the orbit or had the wrong yaw value
 	uint32_t timeout;
+
 	uint32_t delay_setpoint;
+
 	float accept_range_yaw;
 	float accept_range_distance;
+
 	bool yaw_reached;
 	bool pos_reached;
-	bool idle;
+
+	bool idle;										///< indicates if the system is following the waypoints or is waiting
+
+	uint8_t current_partner_sysid;
+	uint8_t current_partner_compid;
 } mavlink_waypoint_storage_t;
 
 mavlink_waypoint_storage_t waypoint_data;
@@ -112,6 +118,7 @@ uint64_t get_waypoint_timestamp_lastaction(void);
 
 //timestamp_last_send_setpoint
 void set_waypoint_timestamp_last_send_setpoint(void);
+uint64_t get_waypoint_timestamp_last_send_setpoint(void);
 
 //timestamp_lastoutside_orbit
 void set_waypoint_timestamp_lastoutside_orbit(void);
@@ -126,6 +133,8 @@ void set_waypoint_timeout(uint64_t timeout);
 uint64_t get_waypoint_timeout(void);
 
 //delay_setpoint
+void set_waypoint_delay_setpoint(uint32_t delay);
+uint32_t get_waypoint_delay_setpoint(void);
 
 //idle
 bool get_waypoint_idle(void);
@@ -136,6 +145,7 @@ bool get_waypoint_idle(void);
 
 //yaw_reached
 void set_waypoint_yaw_reached(bool size);
+bool get_waypoint_yaw_reached(void);
 
 //pos_reached
 void set_waypoint_pos_reached(bool size);
@@ -143,6 +153,19 @@ bool get_waypoint_pos_reached(void);
 
 void set_waypoint_waypoints_current(uint16_t wp_id, bool value);
 bool get_waypoint_waypoints_current(uint16_t wp_id);
+
+void set_waypoint_current_partner_sysid(uint8_t sysid);
+uint8_t get_waypoint_current_partner_sysid(void);
+
+void set_waypoint_current_partner_compid(uint8_t compid);
+uint8_t get_waypoint_current_partner_compid(void);
+
+//////////////////////////////
+
+void update_active_waypoint(uint16_t id);
+float distance_to_point (float latA, float lonA, float altA, float latB, float lonB, float altB);
+float waypoint_distance_to_point (uint16_t id, float lat, float lon, float alt);
+float waypoint_distance_to_segment (uint16_t id, float lat, float lon, float alt);
 
 //////////////////////////////
 
