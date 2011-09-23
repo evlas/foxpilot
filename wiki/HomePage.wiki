@@ -1,13 +1,7 @@
 #summary One-sentence summary of this page.
 
+http://www.acmesystems.it/www/FOXG20/foxg20_parts.jpg
+
 = Introduction =
 
-Add your content here.
-
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+This is the FOXPilot Manual. Follow the navigation links in the sidebar at left.
