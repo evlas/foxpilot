@@ -10,3 +10,10 @@ The 2 state machine in the code.
 For start the UAV you have to configure it. You must read the configuration (in calibration and Onboard Parameters -> read(ROM)), first configure and save this.
 
 http://foxpilot.googlecode.com/svn/trunk/FOX_Pilot/doc/state_machine.png
+
+I have not thought about the HIL 
+
+Another state machine is the FLY
+
+http://foxpilot.googlecode.com/svn/trunk/FOX_Pilot/doc/FLY_state_machine.png
+
