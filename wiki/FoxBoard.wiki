@@ -1,5 +1,3 @@
-#summary One-sentence summary of this page.
-
 = Introduction =
 
 FOX Board G20 is Single Board Computer built around the ARM9@400Mhz Atmel CPU AT91SAM9G20. (http://www.acmesystems.it/?id=FOXG20)
@@ -39,4 +37,3 @@ Average power consumpiom: 80 mA @ 5V (0.4 Watt) without microSD, ethernet link, 
 <br>
 http://www.acmesystems.it/www/FOXG20/foxg20_parts.jpg<br>
 <br>
-
