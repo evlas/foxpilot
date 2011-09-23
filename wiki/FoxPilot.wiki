@@ -1,5 +1,3 @@
-#summary One-sentence summary of this page.
-
 = Introduction =
 
 Fox Board G20 based autopilot for mulitrotor craft, from quadcopters to traditional helis
