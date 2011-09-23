@@ -1,0 +1,10 @@
+#summary One-sentence summary of this page.
+
+= Introduction =
+
+The 2 state machine in the code. 
+
+
+= Details =
+
+http://foxpilot.googlecode.com/svn/trunk/FOX_Pilot/doc/state_machine.png
