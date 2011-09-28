@@ -45,7 +45,7 @@
 #define ARDUIMU_DEVICE   "/dev/ttyS1"
 #define ARDUIMU_RATE     38400
 #define ARDUIMU_DATABITS 8
-#define ARDUIMU_STOPBITS 0
+#define ARDUIMU_STOPBITS 1
 #define ARDUIMU_PARITY   0
 
 /***************************************/
@@ -65,7 +65,7 @@
 #define POLOLU_DEVICE   "/dev/ttyS2"
 #define POLOLU_RATE     38400
 #define POLOLU_DATABITS 8
-#define POLOLU_STOPBITS 0
+#define POLOLU_STOPBITS 1
 #define POLOLU_PARITY   0
 
 

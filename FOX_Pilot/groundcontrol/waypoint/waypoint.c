@@ -5,6 +5,7 @@
  *      Author: vito
  */
 #include <stdio.h>
+#include <math.h>
 
 #include <math/range.h>
 #include <math/mav_vect.h>

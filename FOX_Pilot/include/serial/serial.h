@@ -111,14 +111,19 @@ static inline int init_serial(const char *devicename, int baud_rate, int data_bi
 	}
 
 	memset(&newtio, 0, sizeof(newtio));
+//	cfsetispeed(&newtio, BAUD);
+//	cfsetospeed(&newtio, BAUD);
+
 	// set new port settings for canonical input processing
-	newtio.c_cflag = BAUD | CRTSCTS | DATABITS | STOPBITS | PARITYON | PARITY | CLOCAL | CREAD;
-	newtio.c_iflag = IGNPAR;
+	newtio.c_cflag = BAUD | DATABITS | STOPBITS | PARITYON | PARITY | CLOCAL | CREAD;
+	newtio.c_iflag = IGNPAR;  //IGNPAR
 	newtio.c_oflag = 0;
 	newtio.c_lflag = 0;       //ICANON;
 	newtio.c_cc[VMIN]=1;      //blocking read until 1 character arrives (meglio 10?)
 	newtio.c_cc[VTIME]=0;     //inter-character timer unused
 	tcflush(fd, TCIFLUSH);
+
+	/* set all of the options */
 	tcsetattr(fd, TCSANOW, &newtio);
 
 	return(fd);

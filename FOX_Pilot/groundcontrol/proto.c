@@ -192,8 +192,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_system_time_decode(&msg, &system_time);
 
 			//Vito da verificare se c'è da filtrare
-			if ((mavlink_msg_action_get_target(&msg) == get_param_value(PARAM_SYSTEM_ID)))  {
-				//&& (mavlink_msg_action_get_target_component(&msg) == get_param_value(PARAM_COMPONENT_ID))) {
+			if ((mavlink_msg_action_get_target(&msg) == (uint8_t)get_param_value(PARAM_SYSTEM_ID)))  {
+				//&& (mavlink_msg_action_get_target_component(&msg) == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				if (!sys_time_clock_get_unix_offset()) {
 					int64_t offset = ((int64_t) mavlink_msg_system_time_get_time_usec(&msg)) - (int64_t) microsSinceEpoch();
 					sys_time_clock_set_unix_offset(offset);
@@ -222,8 +222,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_action_t action;
 
 			mavlink_msg_action_decode(&msg, &action);
-			if ((action.target == get_param_value(PARAM_SYSTEM_ID))) {
-				//				&& (action.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+			if ((action.target == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				//				&& (action.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				//mavlink_msg_action_get_target_component(&msg);
 
 				//printf("TARGET %d ACTION %d\n",action.target, mavlink_msg_action_get_action(&msg));
@@ -237,7 +237,7 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_set_mode_decode(&msg, &mode);
 
 			// Check if this system should change the mode
-			if (mode.target == get_param_value(PARAM_SYSTEM_ID)) {
+			if (mode.target == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_sys_state_mode(mode.mode);
 
 				//update_system_statemachine();
@@ -252,7 +252,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_set_nav_mode_decode(&msg, &nav_mode);
 
-			if (nav_mode.target == get_param_value(PARAM_SYSTEM_ID)) {
+			if (nav_mode.target == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_sys_state_nav_mode(nav_mode.nav_mode);
 
 				// Emit current mode
@@ -266,8 +266,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_param_request_read_decode(&msg, &set);
 
 			// Check if this message is for this system
-			if (((uint8_t) set.target_system == get_param_value(PARAM_SYSTEM_ID))) {
-				//&& ((uint8_t) set.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+			if (((uint8_t) set.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				//&& ((uint8_t) set.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 
 				if (set.param_id[0] == '\0') {
 					// Choose parameter based on index
@@ -291,8 +291,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_param_request_list_t list;
 
 			mavlink_msg_param_request_list_decode(&msg, &list);
-			if (((uint8_t) list.target_system == get_param_value(PARAM_SYSTEM_ID))) {
-				//					&& ((uint8_t) list.target_component == get_param_value_groundcontrol(PARAM_COMPONENT_ID))) {
+			if (((uint8_t) list.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				//					&& ((uint8_t) list.target_component == (uint8_t)get_param_value_groundcontrol(PARAM_COMPONENT_ID))) {
 				for (i=0;i<ONBOARD_PARAM_COUNT;i++) {
 					send_mav_param_value(i);
 				}
@@ -306,8 +306,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_param_set_decode(&msg, &set);
 
 			// Check if this message is for this system
-			if (((uint8_t) set.target_system == get_param_value(PARAM_SYSTEM_ID))) {
-				// && ((uint8_t) set.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+			if ((set.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				// && ((uint8_t) set.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				i = set_param_value_with_name(set.param_id, set.param_value);
 
 				// Report back new value
@@ -358,7 +358,7 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_waypoint_t wp;
 			mavlink_msg_waypoint_decode(&msg, &wp);
 
-			if(wp.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wp.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
 				//ensure that we are in the correct state and that the first waypoint has id 0 and the following waypoints have the correct ids
@@ -430,7 +430,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_request_decode(&msg, &wpr);
 
-			if(wpr.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wpr.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
 				//ensure that we are in the correct state and that the first request has id 0 and the following requests have either the last id (re-send last waypoint) or last_id+1 (next waypoint)
@@ -454,7 +454,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_set_current_decode(&msg, &wpsc);
 
-			if(wpsc.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wpsc.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
 				if (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE) {
@@ -484,7 +484,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_request_list_decode(&msg, &wprl);
 
-			if(wprl.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wprl.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
 
@@ -505,7 +505,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_count_decode(&msg, &wpc);
 
-			if(wpc.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wpc.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 				set_waypoint_timestamp_lastaction();
 
 				if ((get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)
@@ -536,7 +536,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_clear_all_decode(&msg, &wpca);
 
-			if((wpca.target_system == get_param_value(PARAM_SYSTEM_ID))
+			if((wpca.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))
 					&& (get_waypoint_current_state() == MAVLINK_WPM_STATE_IDLE)){
 				set_waypoint_timestamp_lastaction();
 
@@ -553,7 +553,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_waypoint_ack_decode(&msg, &wpa);
 
-			if(wpa.target_system == get_param_value(PARAM_SYSTEM_ID)) {
+			if(wpa.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID)) {
 
 				set_waypoint_timestamp_lastaction();
 
@@ -573,8 +573,8 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_local_position_setpoint_set_decode(&msg, &point);
 			//			mavlink_position_control_setpoint_set_t pos;
 
-			if (((uint8_t) point.target_system == get_param_value(PARAM_SYSTEM_ID))) {
-				//&& ((uint8_t) point.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+			if (((uint8_t) point.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				//&& ((uint8_t) point.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				/*
 				if (global_data.param[PARAM_POSITIONSETPOINT_ACCEPT] == 1) {
 					//			global_data.position_setpoint.x = pos.x;
@@ -612,7 +612,7 @@ int handle_message(uint8_t *buf, int dim) {
 			mavlink_msg_request_data_stream_decode(&msg, &stream);
 
 			if ((stream.target_system == (uint8_t) get_param_value(PARAM_SYSTEM_ID))) {
-				//				&& ((uint8_t) stream.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+				//				&& ((uint8_t) stream.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				switch (stream.req_stream_id) {
 				case MAV_DATA_STREAM_ALL: // UNIMPLEMENTED
 					set_datastream(MAV_DATA_STREAM_ALL, stream.req_message_rate, stream.start_stop);
@@ -665,7 +665,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 			//Controllo manuale
 			//completare
-			if (((uint8_t) manual_control.target == get_param_value(PARAM_SYSTEM_ID))) {
+			if (((uint8_t) manual_control.target == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
 				remote.roll = mavlink_msg_manual_control_get_roll(&msg);
 				remote.roll_manual = mavlink_msg_manual_control_get_roll_manual(&msg);
 				remote.pitch = mavlink_msg_manual_control_get_pitch(&msg);
@@ -686,8 +686,8 @@ int handle_message(uint8_t *buf, int dim) {
 
 			mavlink_msg_command_decode(&msg, &command);
 
-			if (((uint8_t) command.target_system == get_param_value(PARAM_SYSTEM_ID))) {
-				//&& ((uint8_t) command.target_component == get_param_value(PARAM_COMPONENT_ID))) {
+			if (((uint8_t) command.target_system == (uint8_t)get_param_value(PARAM_SYSTEM_ID))) {
+				//&& ((uint8_t) command.target_component == (uint8_t)get_param_value(PARAM_COMPONENT_ID))) {
 				printf("MAVLINK_MSG_ID_COMMAND\n");
 				send_mav_command_ack((float)mavlink_msg_command_get_command(&msg), 1.0);
 			}
@@ -1529,7 +1529,6 @@ uint64_t microsSinceEpoch() {
 //PARAMETER
 void param_defaults(void) {
 	pthread_mutex_lock(&groundcontrol_mutex);
-	//	memset(&groundcontrol_data, 0, sizeof(groundcontrol_t));
 
 	groundcontrol_data.state.mav_mode = MAV_MODE_UNINIT;
 	groundcontrol_data.state.nav_mode = MAV_NAV_GROUNDED;
@@ -1556,7 +1555,7 @@ void param_defaults(void) {
 	strcpy(groundcontrol_data.param_name[PARAM_IMU_RESET], "SYS_IMU_RESET");
 
 	groundcontrol_data.param[PARAM_ESC_CALIBRATION] = 0.0;
-	strcpy(groundcontrol_data.param_name[PARAM_ESC_CALIBRATION], "BOOT_ESC_CALIBR");
+	strcpy(groundcontrol_data.param_name[PARAM_ESC_CALIBRATION], "BOOT_ESC_CALIB");
 
 	groundcontrol_data.param[PARAM_PID_ALTI_KP] = 0.0;
 	strcpy(groundcontrol_data.param_name[PARAM_PID_ALTI_KP], "ALTI_KP");
@@ -1701,7 +1700,6 @@ void param_write_all(void) {
 
 		fclose(fp);
 	}
-
 }
 
 void handle_param(int i){
@@ -2433,7 +2431,7 @@ void esc_calibration(void) {
 	}
 	write_attuatori(&attuatori_g);
 
-	sleep(10);
+	sleep(3);
 }
 
 //re-map rc in 0-10000 value 0->0% 10000->100%
