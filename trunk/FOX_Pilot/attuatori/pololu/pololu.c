@@ -26,13 +26,22 @@ pololu_serial_t pololu_serial;
 void *pololu_loop(void *ptr) {
 	int i;
 	pololuchan_t pololuchan;
+	uint16_t lastvalue[POLOLU_NCHAN];
+
+	for (i=0;i<POLOLU_NCHAN;i++) {
+		lastvalue[i]=0;
+	}
 
 	init_pololu(&pololuchan);
 
 	while (pololu_serial.connected) {
 		read_attuatori_pololu(&pololuchan);
+
 		for (i=0;i<POLOLU_NCHAN;i++) {
-			p_position_absolute(i, pololuchan.value[i]);
+			if(pololuchan.value[i] != lastvalue[i]) {
+				p_position_absolute(i, pololuchan.value[i]);
+				lastvalue[i] = pololuchan.value[i];
+			}
 		}
 	}
 
@@ -61,11 +70,11 @@ int init_pololu(pololuchan_t *chan) {
 
 	pololu_serial.connected = false;
 	while((pololu_serial.fd = init_serial(pololu_serial.device,
-									pololu_serial.rate,
-									pololu_serial.data_bits,
-									pololu_serial.stop_bits,
-									pololu_serial.parity,
-									&(pololu_serial.oldtio)))<0) {
+			pololu_serial.rate,
+			pololu_serial.data_bits,
+			pololu_serial.stop_bits,
+			pololu_serial.parity,
+			&(pololu_serial.oldtio)))<0) {
 		printf("Errore di connessione sulla seriale %s (POLOLU)\n",pololu_serial.device);
 		sleep(5);
 	};
@@ -74,12 +83,12 @@ int init_pololu(pololuchan_t *chan) {
 	get_attuatori(&attuatori);
 
 	for(i=0;i<NUMS_ATTUATORI;i++){
-			if (attuatori.value[i] < 0) {
-				chan->value[attuatori.id[i]] = (((chan->zero[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
-			} else {
-				chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->zero[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
-			}
-//		chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/(attuatori[i].max-attuatori.min[i]))+chan->min[attuatori.id[i]];
+		if (attuatori.value[i] < 0) {
+			chan->value[attuatori.id[i]] = (((chan->zero[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+		} else {
+			chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->zero[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+		}
+		//		chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/(attuatori[i].max-attuatori.min[i]))+chan->min[attuatori.id[i]];
 	}
 
 	for (i=0;i<POLOLU_NCHAN;i++) {
@@ -101,12 +110,12 @@ void read_attuatori_pololu(pololuchan_t *chan) {
 	read_attuatori(&attuatori);
 
 	for(i=0;i<NUMS_ATTUATORI;i++){
-			if (attuatori.value[i] < 0) {
-				chan->value[attuatori.id[i]] = (((chan->zero[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
-			} else {
-				chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->zero[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
-			}
-//		chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/(attuatori[i].max-attuatori.min[i]))+chan->min[attuatori.id[i]];
+		if (attuatori.value[i] < 0) {
+			chan->value[attuatori.id[i]] = (((chan->zero[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+		} else {
+			chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->zero[attuatori.id[i]])*attuatori.value[i])/10000)+chan->zero[attuatori.id[i]];
+		}
+		//		chan->value[attuatori.id[i]] = (((chan->max[attuatori.id[i]] - chan->min[attuatori.id[i]])*attuatori.value[i])/(attuatori[i].max-attuatori.min[i]))+chan->min[attuatori.id[i]];
 	}
 }
 
@@ -114,199 +123,199 @@ void read_attuatori_pololu(pololuchan_t *chan) {
 ////////////////////////////////
 
 const char *getId() {
-  return (pololu_serial.idstring);
+	return (pololu_serial.idstring);
 }
 
 //SSC MODE
 void s_sendCommand(ssc_t *ssc) {
-  char buf[3];
-  int ret;
-  snprintf(buf,3,"%c%c%c",ssc->startBit,ssc->servo,ssc->position);
-  ret = write(pololu_serial.fd,buf,3);
+	char buf[3];
+	int ret;
+	snprintf(buf,3,"%c%c%c",ssc->startBit,ssc->servo,ssc->position);
+	ret = write(pololu_serial.fd,buf,3);
 }
 
 int s_stepTo(uint8_t servo, uint8_t pos) {
-  ssc_t ssc;
-  if(!pololu_serial.connected) {
-	  return(0);
-  }
+	ssc_t ssc;
+	if(!pololu_serial.connected) {
+		return(0);
+	}
 
-  ssc.startBit=0xFF;
+	ssc.startBit=0xFF;
 
-  if (servo == 0xFF) {
-    return 0;
-  }
-  ssc.servo=servo;
+	if (servo == 0xFF) {
+		return 0;
+	}
+	ssc.servo=servo;
 
-  ssc.position=pos;
-  if (pos == 0xFF) {
-    ssc.position=0xFE;
-  }
+	ssc.position=pos;
+	if (pos == 0xFF) {
+		ssc.position=0xFE;
+	}
 
-  s_sendCommand(&ssc);
+	s_sendCommand(&ssc);
 
-  return(1);
+	return(1);
 }
 
 //POLOLU MODE
 /* write a message to the SSC */
 void p_sendCommand(pololu_t *pololu) {
-  char buf[5];
-  int ret;
-  snprintf(buf,5,"%c%c%c%c%c",pololu->startBit,pololu->id,pololu->command,pololu->servo,pololu->data1);
-  ret = write(pololu_serial.fd,buf,5);
+	char buf[5];
+	int ret;
+	snprintf(buf,5,"%c%c%c%c%c",pololu->startBit,pololu->id,pololu->command,pololu->servo,pololu->data1);
+	ret = write(pololu_serial.fd,buf,5);
 }
 
 void p_sendCommand6(pololu_t *pololu) {
-  char buf[6];
-  int ret;
-  pololu->servo += pololu->id*16;
-  snprintf(buf,6,"%c%c%c%c%c%c",pololu->startBit,pololu->id,pololu->command,pololu->servo,pololu->data1,pololu->data2);
-  ret = write(pololu_serial.fd,buf,6);
+	char buf[6];
+	int ret;
+
+	snprintf(buf,6,"%c%c%c%c%c%c",pololu->startBit,pololu->id,pololu->command,pololu->servo,pololu->data1,pololu->data2);
+	ret = write(pololu_serial.fd,buf,6);
 }
 
 int p_command(uint8_t controller, uint8_t servo, cmd_t cmd, int data) {
-  pololu_t pololu;
-  pololu_param_t parametro;
+	pololu_t pololu;
+	pololu_param_t parametro;
 
-  if(pololu_serial.connected == false) {
-	  return(0);
-  }
+	if(pololu_serial.connected == false) {
+		return(0);
+	}
 
-  pololu.startBit=0x80;
-  pololu.id=controller;
-  pololu.servo=servo;
-  pololu.command=(uint8_t)cmd;
+	pololu.startBit=0x80;
+	pololu.id=controller;
+	pololu.servo=servo;
+	pololu.command=(uint8_t)cmd;
 
-  parametro.reserved=0;
-  parametro.onoff=0;
-  parametro.direction=0;
-  parametro.range=0;
+	parametro.reserved=0;
+	parametro.onoff=0;
+	parametro.direction=0;
+	parametro.range=0;
 
-  switch (cmd) {
-    case setParam:
-      pololu.data1=(uint8_t)data;
-      if (data > 127) {
-        pololu.data1=127;
-      }
-      pololu.data2=0;
-      p_sendCommand(&pololu);
-      break;
-    case setSpeed:
-      pololu.data1=(uint8_t)data;
-      if (data > 127) {
-        pololu.data1=127;
-      }
-      pololu.data2=0;
-      p_sendCommand(&pololu);
-      break;
-    case setPos7:
-      pololu.data1=(uint8_t)data;
-      if (data > 127) {
-        pololu.data1=127;
-      }
-      pololu.data2=0;
-      p_sendCommand(&pololu);
-      break;
-    case setPos8:
-      pololu.data1=(uint8_t)(data/128);
-      pololu.data2=(uint8_t)(data%128);
-      p_sendCommand6(&pololu);
-      break;
-    case setPosA:
-      pololu.data1=(uint8_t)(data/128);
-      pololu.data2=(uint8_t)(data%128);
-      p_sendCommand6(&pololu);
-      break;
-    case setNeutr:
-      pololu.data1=(uint8_t)(data/128);
-      pololu.data2=(uint8_t)(data%128);
-      p_sendCommand6(&pololu);
-      break;
-    default:
-      return(0);
-  }
-  return(1);
+	switch (cmd) {
+	case setParam:
+		pololu.data1=(uint8_t)data;
+		if (data > 127) {
+			pololu.data1=127;
+		}
+		pololu.data2=0;
+		p_sendCommand(&pololu);
+		break;
+	case setSpeed:
+		pololu.data1=(uint8_t)data;
+		if (data > 127) {
+			pololu.data1=127;
+		}
+		pololu.data2=0;
+		p_sendCommand(&pololu);
+		break;
+	case setPos7:
+		pololu.data1=(uint8_t)data;
+		if (data > 127) {
+			pololu.data1=127;
+		}
+		pololu.data2=0;
+		p_sendCommand(&pololu);
+		break;
+	case setPos8:
+		pololu.data1=(uint8_t)(data/128);
+		pololu.data2=(uint8_t)(data%128);
+		p_sendCommand6(&pololu);
+		break;
+	case setPosA:
+		pololu.data1=(uint8_t)(data/128);
+		pololu.data2=(uint8_t)(data%128);
+		p_sendCommand6(&pololu);
+		break;
+	case setNeutr:
+		pololu.data1=(uint8_t)(data/128);
+		pololu.data2=(uint8_t)(data%128);
+		p_sendCommand6(&pololu);
+		break;
+	default:
+		return(0);
+	}
+	return(1);
 }
 
 int p_enable(uint8_t controller, uint8_t servo) {
-  return (p_command(controller, servo, 0, 0x40));
+	return (p_command(controller, servo, 0, 0x40));
 }
 
 int p_disable(uint8_t controller, uint8_t servo) {
-  return (p_command(controller, servo, 0, 0x00));
+	return (p_command(controller, servo, 0, 0x00));
 }
 
 int p_forward(uint8_t controller, uint8_t servo) {
-  return (p_command(controller, servo, 0, 0x00));
+	return (p_command(controller, servo, 0, 0x00));
 }
 
 int p_reverse(uint8_t controller, uint8_t servo) {
-  return (p_command(controller, servo, 0, 0x20));
+	return (p_command(controller, servo, 0, 0x20));
 }
 
 int p_range(uint8_t controller, uint8_t servo, uint8_t range) {
-  return (p_command(controller, servo, 0, range & 0x1F));
+	return (p_command(controller, servo, 0, range & 0x1F));
 }
 
 //Mangle
 //setParam
 int p_set_parameters(uint8_t servo, uint8_t param) {
-  //this function uses pololu mode command 1 to set speed
-  //servo is the servo number (typically 0-7)
-  //speedVal is servo speed (1=slowest, 127=fastest, 0=full)
-  //set speedVal to zero to turn off speed limiting
+	//this function uses pololu mode command 1 to set speed
+	//servo is the servo number (typically 0-7)
+	//speedVal is servo speed (1=slowest, 127=fastest, 0=full)
+	//set speedVal to zero to turn off speed limiting
 
-  return(p_command((servo/8)+1, servo, setParam, param));
+	return(p_command((servo/8)+1, servo, setParam, param));
 }
 
 //setSpeed
 int p_set_speed(uint8_t servo, uint8_t speedVal) {
-  //this function uses pololu mode command 1 to set speed
-  //servo is the servo number (typically 0-7)
-  //speedVal is servo speed (1=slowest, 127=fastest, 0=full)
-  //set speedVal to zero to turn off speed limiting
+	//this function uses pololu mode command 1 to set speed
+	//servo is the servo number (typically 0-7)
+	//speedVal is servo speed (1=slowest, 127=fastest, 0=full)
+	//set speedVal to zero to turn off speed limiting
 
-  return(p_command((servo/8)+1, servo, setSpeed, speedVal));
+	return(p_command((servo/8)+1, servo, setSpeed, speedVal));
 }
 
 //setPos7
 int p_position_7bit(uint8_t servo, uint8_t posValue) {
-  //this function uses pololu mode command 2 to set position
-  //servo is the servo number (typically 0-7)
-  //posValue * range (set with command 0) adjusted by neutral (set with command 5)
-  //determines servo position
+	//this function uses pololu mode command 2 to set position
+	//servo is the servo number (typically 0-7)
+	//posValue * range (set with command 0) adjusted by neutral (set with command 5)
+	//determines servo position
 
-  return(p_command((servo/8)+1, servo, setPos7, posValue));
+	return(p_command((servo/8)+1, servo, setPos7, posValue));
 }
 
 //setPos8
 int p_position_8bit(uint8_t servo, uint8_t posValue) {
-  //this function uses pololu mode command 3 to set position
-  //servo is the servo number (typically 0-7)
-  //posValue * range (set with command 0) adjusted by neutral (set with command 5)
-  //determines servo position
+	//this function uses pololu mode command 3 to set position
+	//servo is the servo number (typically 0-7)
+	//posValue * range (set with command 0) adjusted by neutral (set with command 5)
+	//determines servo position
 
-  return(p_command((servo/8)+1, servo, setPos8, posValue));
+	return(p_command((servo/8)+1, servo, setPos8, posValue));
 }
 
 //setPosA
 int p_position_absolute(uint8_t servo, int angle) {
-  //this function uses pololu mode command 4 to set absolute position
-  //servo is the servo number (typically 0-7)
-  //angle is the absolute position from 500 to 5500
+	//this function uses pololu mode command 4 to set absolute position
+	//servo is the servo number (typically 0-7)
+	//angle is the absolute position from 500 to 5500
 
-  //printf("servo %d angolo %d\n",servo,angle);
-  return(p_command((servo/8)+1, servo, setPosA, angle));
+	//printf("servo %d angolo %d\n",servo,angle);
+	return(p_command((servo/8)+1, servo, setPosA, angle));
 }
 
 //setNeutr
 int p_set_neutral(uint8_t servo, int angle) {
-  //this function uses pololu mode command 5 to set neutral position
-  //servo is the servo number (typically 0-7)
-  //angle is the absolute position from 500 to 5500
+	//this function uses pololu mode command 5 to set neutral position
+	//servo is the servo number (typically 0-7)
+	//angle is the absolute position from 500 to 5500
 
-  return(p_command((servo/8)+1, servo, setNeutr, angle));
+	return(p_command((servo/8)+1, servo, setNeutr, angle));
 }
 
 

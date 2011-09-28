@@ -24,7 +24,7 @@ groundcontrol_t groundcontrol_data;
 pthread_mutex_t groundcontrol_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //MANGLER
-void init_groundcontrol() {
+void init_groundcontrol(void) {
 	memset(&groundcontrol_data, 0, sizeof(groundcontrol_t));
 	param_defaults();
 	set_groundcontrol_watchdog(true);
@@ -60,7 +60,7 @@ void set_failsafe_groundcontrol(bool failsafe) {
 	groundcontrol_data.state.failsafe = failsafe;
 	pthread_mutex_unlock(&groundcontrol_mutex);
 }
-bool get_failsafe_groundcontrol() {
+bool get_failsafe_groundcontrol(void) {
 	bool res;
 	pthread_mutex_lock(&groundcontrol_mutex);
 	res = groundcontrol_data.state.failsafe;

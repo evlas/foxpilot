@@ -28,8 +28,8 @@
 #ifdef _SSC32_
 #define POLOLU_NCHAN 32
 
-#define POLOLU_MIN 500
-#define POLOLU_MAX 5500
+#define POLOLU_MIN 1800
+#define POLOLU_MAX 4200
 #endif
 
 /* SSC03A

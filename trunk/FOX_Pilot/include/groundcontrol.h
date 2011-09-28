@@ -142,16 +142,14 @@ typedef struct __groundcontrol_t {
 groundcontrol_t groundcontrol_data;
 pthread_mutex_t groundcontrol_mutex;
 
-void init_groundcontrol();
-void deinit_groundcontrol();
-
-void param_defaults_groundcontrol(void);
+void init_groundcontrol(void);
+void deinit_groundcontrol(void);
 
 int read_groundcontrol(groundcontrol_t *a);
 int write_groundcontrol(groundcontrol_t *a);
 
 void set_failsafe_groundcontrol(bool failsafe);
-bool get_failsafe_groundcontrol();
+bool get_failsafe_groundcontrol(void);
 
 //int write_mode_groundcontrol(uint8_t mode);
 

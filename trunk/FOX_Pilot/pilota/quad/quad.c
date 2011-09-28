@@ -46,7 +46,8 @@ int processFlightControlQuadXGuided(pilota_t *pilota_quad) {
 	case FLY_TAKE_OFF:
 		printf("FLY_TAKE_OFF\n");
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_STARTING) {
-			if ((take_off(pilota_quad, 100.0, MAV_FRAME_GLOBAL_RELATIVE_ALT) == 0) && (pilota_quad->groundcontrol.state.remote.thrust > 0)) {
+			//set alti to 100.0
+			if ((take_off(pilota_quad, 1.0, MAV_FRAME_GLOBAL_RELATIVE_ALT) == 0) && (pilota_quad->groundcontrol.state.remote.thrust > 0)) {
 				set_sys_state_fly(FLY_FLYING);
 			}
 		}
