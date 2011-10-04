@@ -47,7 +47,7 @@ int processFlightControlQuadXGuided(pilota_t *pilota_quad) {
 		printf("FLY_TAKE_OFF\n");
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_STARTING) {
 			//set alti to 100.0
-			if ((take_off(pilota_quad, 1.0, MAV_FRAME_GLOBAL_RELATIVE_ALT) == 0) && (pilota_quad->groundcontrol.state.remote.thrust > 0)) {
+			if ((take_off(pilota_quad, 0.0, MAV_FRAME_GLOBAL_RELATIVE_ALT) == 0) && (pilota_quad->groundcontrol.state.remote.thrust > 0)) {
 				set_sys_state_fly(FLY_FLYING);
 			}
 		}
@@ -548,8 +548,7 @@ int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
 		if((pilota_quad->sensori.gps.altitude > (altezzaEnd - 5)) && (pilota_quad->sensori.gps.altitude < (altezzaEnd + 5))) {
 			end = 1;
 		}
-
-	} while (end < 1);
+	} while (end == 1);
 
 	return(0);
 }
@@ -651,7 +650,7 @@ int landing(pilota_t *pilota_quad) {
 		if(pilota_quad->current.throttle_f <= 0.0001) {
 			end = 1;
 		}
-	} while (end < 1);
+	} while (end == 1);
 
 	return(0);
 }

@@ -2,6 +2,7 @@ include environment.mk
 #include common.mk
 
 SRC_FIRMWARE := firmware/main.c \
+                loader/loadconf.c \
 				firmware/attuatori.c \
 				firmware/sensori.c \
 				firmware/watchdog.c \

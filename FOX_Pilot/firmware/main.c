@@ -24,6 +24,8 @@
 #include <attuatori.h>
 #include <pilota.h>
 
+#include <loader/loadconf.h>
+
 #include <groundcontrol/proto.h>
 #include <groundcontrol/TCP_Server/tcpserver.h>
 #include <groundcontrol/UDP_Server/udpserver.h>
@@ -35,11 +37,12 @@
 #include <attuatori/pololu/pololu.h>
 
 int main(int argc, char *argv[]) {
+	load_data_struct_t load_data;
 	pthread_t pthr_watchdog, pthr_groundcontrol[4], pthr_sensori[2], pthr_attuatori[1], pthr_pilota;
 
 	//Load della configurazione
-//	load_configuration();
-//	save_configuration();
+	load_configuration(&load_data);
+	save_configuration(&load_data);
 
 	//Avvio il watchdog
 	if (pthread_create(&pthr_watchdog, NULL, watchdog_loop, NULL)){
@@ -79,7 +82,11 @@ int main(int argc, char *argv[]) {
 
 	//Avvio la gestione degli attuatori
 	init_attuatori();
-	conf_pololu(POLOLU_DEVICE, POLOLU_RATE, POLOLU_DATABITS, POLOLU_STOPBITS, POLOLU_PARITY);
+	conf_pololu(load_data.pololu_device,
+			load_data.pololu_rate,
+			load_data.pololu_data_bits,
+			load_data.pololu_stop_bits,
+			load_data.pololu_parity);
 	if (pthread_create(&pthr_attuatori[0], NULL, pololu_loop, NULL)){
 		printf("ERROR; pthread_create(attuatori(pololu))\n");
 		exit(errno);
@@ -91,7 +98,11 @@ int main(int argc, char *argv[]) {
 
 	//Avvio la lettura dai sensori
 	init_sensori();
-	conf_arduimu(ARDUIMU_DEVICE, ARDUIMU_RATE, ARDUIMU_DATABITS, ARDUIMU_STOPBITS, ARDUIMU_PARITY);
+	conf_arduimu(load_data.arduimu_device,
+			load_data.arduimu_rate,
+			load_data.arduimu_data_bits,
+			load_data.arduimu_stop_bits,
+			load_data.arduimu_parity);
 	if (pthread_create(&pthr_sensori[0], NULL, arduimu_loop, NULL)){
 		printf("ERROR; pthread_create(sensori(arduimu))\n");
 		exit(errno);
