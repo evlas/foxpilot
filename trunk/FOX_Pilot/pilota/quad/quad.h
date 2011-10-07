@@ -46,7 +46,7 @@ float get_bearing(pilota_location_t *start,pilota_location_t *end);			//direzion
 float get_distance(pilota_location_t *start,pilota_location_t *end);		//distanza
 float get_alt_distance(pilota_location_t *start,pilota_location_t *end);	//altezza
 
-//alti in cm, heading gradi sessagesimali
+//alti in cm
 int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame);
 int landing(pilota_t *pilota_quad);
 

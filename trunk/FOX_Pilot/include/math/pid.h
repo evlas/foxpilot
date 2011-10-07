@@ -35,5 +35,6 @@ void pid_init(PID_t *pid, float kp, float ki, float kd, float intmax, uint8_t mo
 void pid_set_parameters(PID_t *pid, float kp, float ki, float kd, float intmax);
 //void pid_set(PID_t *pid, float sp);
 float pid_calculate(PID_t *pid, float sp, float val, float val_dot);
+void set_pid_saturated(PID_t *pid);
 
 #endif /* PID_H_ */

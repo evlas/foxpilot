@@ -14,6 +14,8 @@
 
 #include <mavlink.h>
 
+#define PARAM_FILE "/opt/foxpilot/params.txt"
+
 void *protocol_loop(void *ptr);
 void init_protocol();
 
@@ -59,5 +61,7 @@ void gps_set_local_origin(void);
 int64_t sys_time_clock_get_unix_offset(void);
 void sys_time_clock_set_unix_offset(int64_t offset);
 
+void uav_poweroff(void);
+void uav_reboot(void);
 
 #endif /* PROTO_H_ */

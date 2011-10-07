@@ -13,7 +13,7 @@
 
 #include <config.h>
 
-#define CONFIG_FILE "config.cfg"
+#define CONFIG_FILE "/opt/foxpilot/config.cfg"
 
 typedef struct {
 	char arduimu_device[25];

@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -33,48 +34,56 @@
 int processFlightControlQuadXGuided(pilota_t *pilota_quad) {
 	switch(pilota_quad->groundcontrol.state.fly) {
 	case FLY_IDLE:
-		printf("FLY_IDLE\n");
+		//printf("FLY_IDLE\n");
 		break;
 	case FLY_STARTING:
-		printf("FLY_STARTING\n");
+		//printf("FLY_STARTING\n");
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_IDLE) {
 			if(pilota_quad->groundcontrol.state.remote.thrust > 0) {
 				set_sys_state_fly(FLY_TAKE_OFF);
 			}
 		}
 		break;
-	case FLY_TAKE_OFF:
-		printf("FLY_TAKE_OFF\n");
+	case FLY_TAKE_OFF: {
+		float alti_takeoff = 100.0; //1 metro
+		uint16_t alti_end;
+		//printf("FLY_TAKE_OFF\n");
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_STARTING) {
-			//set alti to 100.0
-			if ((take_off(pilota_quad, 0.0, MAV_FRAME_GLOBAL_RELATIVE_ALT) == 0) && (pilota_quad->groundcontrol.state.remote.thrust > 0)) {
+			//set alti to 100.0 = 1metro
+			alti_end = pilota_quad->sensori.gps.altitude + (uint16_t)alti_takeoff;
+			while (pilota_quad->groundcontrol.state.remote.thrust >= pilota_quad->current.throttle_f) {
+				take_off(pilota_quad, (float)alti_end, MAV_FRAME_GLOBAL);
+				if (get_sys_state_fly()!=FLY_TAKE_OFF) {
+					continue;
+				}
+			}
+			if (get_sys_state_fly()==FLY_TAKE_OFF) {
 				set_sys_state_fly(FLY_FLYING);
 			}
 		}
-		break;
+	}
+	break;
 	case FLY_FLYING:
-		printf("FLY_FLYING\n");
+		//printf("FLY_FLYING\n");
 		if (pilota_quad->groundcontrol.state.prevfly == FLY_TAKE_OFF) {
-			if (pilota_quad->groundcontrol.state.remote.thrust < 0.001) {
-				set_sys_state_fly(FLY_LANDING);
-			} else {
-				guided_fly_handler(pilota_quad);
-			}
+			guided_fly_handler(pilota_quad);
 		}
 		break;
 	case FLY_LANDING:
-		printf("FLY_LANDING\n");
-		if (pilota_quad->groundcontrol.state.prevfly == FLY_FLYING){
+		//printf("FLY_LANDING\n");
+		if ((pilota_quad->groundcontrol.state.prevfly == FLY_FLYING) ||
+				(pilota_quad->groundcontrol.state.prevfly == FLY_TAKE_OFF)){
 			if (landing(pilota_quad) == 0) {
 				set_sys_state_fly(FLY_END);
 			}
 		}
 		break;
 	case FLY_END:
-		printf("FLY_END\n");
+		//printf("FLY_END\n");
 		if ((pilota_quad->groundcontrol.state.prevfly == FLY_LANDING) || (pilota_quad->groundcontrol.state.prevfly == FLY_FLYING)) {
 			set_sys_state_nav_mode(MAV_NAV_GROUNDED);
 			set_sys_state_fly(FLY_IDLE);
+			send_mav_statustext(0,"Stop Engine!", 12);
 		}
 		break;
 	}
@@ -105,10 +114,10 @@ int processFlightControlQuadXManual(pilota_t *pilota_quad) {
 		pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
 
 		// Yaw input
-		pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
-		pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
-		pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
-		pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[0] -= pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[1] += pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[2] -= pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[3] += pilota_quad->current.yaw_out; // CW
 
 		// We need to clip motor output at out_max. When cipping a motors
 		// output we also need to compensate for the instability by
@@ -163,7 +172,7 @@ int processFlightControlQuadXAuto(pilota_t *pilota_quad) {
 		break;
 	case FLY_STARTING:
 		printf("FLY_STARTING\n");
-		if (pilota_quad->groundcontrol.state.prevfly == FLY_IDLE) {
+		if ((pilota_quad->groundcontrol.state.prevfly == FLY_IDLE) && (get_waypoint_size()>0)) {
 			get_waypoint(get_waypoint_current_active_wp_id(), &waypoint);
 
 			if ((waypoint.current == 1) || (waypoint.command == MAV_CMD_NAV_TAKEOFF)) {
@@ -254,10 +263,10 @@ int guided_fly_handler(pilota_t *pilota_quad) {
 		pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
 
 		// Yaw input
-		pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
-		pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
-		pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
-		pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[0] -= pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[1] += pilota_quad->current.yaw_out; // CW
+		pilota_quad->attuatori.value[2] -= pilota_quad->current.yaw_out; // CCW
+		pilota_quad->attuatori.value[3] += pilota_quad->current.yaw_out; // CW
 
 		// We need to clip motor output at out_max. When cipping a motors
 		// output we also need to compensate for the instability by
@@ -361,8 +370,14 @@ void processAttitude(pilota_t *pilota_quad, float roll, float pitch) {
 				0.0);
 	}
 
-	pilota_quad->current.roll_f = clamp(pilota_quad->current.roll_f,-0.4,0.4);
-	pilota_quad->current.pitch_f = clamp(pilota_quad->current.pitch_f,-0.4,0.4);
+	if ((pilota_quad->current.roll_f > 0.4) || (pilota_quad->current.roll_f < -0.4)) {
+		set_pid_saturated(&rollPID);
+		pilota_quad->current.roll_f = clamp(pilota_quad->current.roll_f,-0.4,0.4);
+	}
+	if ((pilota_quad->current.pitch_f > 0.4) || (pilota_quad->current.pitch_f < -0.4)) {
+		set_pid_saturated(&pitchPID);
+		pilota_quad->current.pitch_f = clamp(pilota_quad->current.pitch_f,-0.4,0.4);
+	}
 
 	printf("pilota_quad->current.roll_f %f\n", pilota_quad->current.roll_f);
 	printf("pilota_quad->current.pitch_f %f\n", pilota_quad->current.pitch_f);
@@ -374,29 +389,43 @@ void processAttitude(pilota_t *pilota_quad, float roll, float pitch) {
 void processHeading(pilota_t *pilota_quad, float heading) {
 	float yaw_incr;
 
+	//l'heading si usa la posto del remote yaw nel MODE AUTO!!!
+
+	pilota_quad->current.heading = (pilota_quad->sensori.imu.yaw * D2R)/100.0;
+
 	if (pilota_quad->groundcontrol.state.mav_mode == MAV_MODE_GUIDED) {
 		//pilota_quad->groundcontrol.state.remote.yaw	-0.5 <-> 0.5 rad
-		yaw_incr = pilota_quad->groundcontrol.state.remote.yaw + pilota_quad->last.heading;
+		yaw_incr = pilota_quad->groundcontrol.state.remote.yaw + pilota_quad->current.heading;
+		//test
+		printf("---- pilota_quad->groundcontrol.state.remote.yaw %f\n     pilota_quad->current.heading %f\n",
+				pilota_quad->groundcontrol.state.remote.yaw,
+				pilota_quad->current.heading);
+		printf("---- yaw_incr %f\n",yaw_incr);
+
 		if (yaw_incr > PI) {
 			yaw_incr -= 2*PI;
 		}
 		if (yaw_incr < -PI)	{
 			yaw_incr += 2*PI;
 		}
+		//test
+		printf("---- yaw_incr %f\n",yaw_incr);
 
 		pilota_quad->current.yaw_f = pid_calculate(&yawPID,
 				yaw_incr,
-				pilota_quad->sensori.imu.yaw*D2R/100.0,
+				pilota_quad->current.heading,
 				0.0);
 	} else if (pilota_quad->groundcontrol.state.mav_mode == MAV_MODE_AUTO) {
 		pilota_quad->current.yaw_f = pid_calculate(&yawPID,
 				heading,
-				pilota_quad->sensori.imu.yaw*D2R/100.0,
+				pilota_quad->current.heading,
 				0.0);
 	}
 
-	pilota_quad->current.yaw_f = clamp(pilota_quad->current.yaw_f,-0.5,0.5);
-	pilota_quad->current.heading = heading;
+	if ((pilota_quad->current.yaw_f > 0.5) || (pilota_quad->current.yaw_f < -0.5)) {
+		set_pid_saturated(&yawPID);
+		pilota_quad->current.yaw_f = clamp(pilota_quad->current.yaw_f,-0.5,0.5);
+	}
 
 	printf("pilota_quad->current.yaw_f %f\n", pilota_quad->current.yaw_f);
 }
@@ -425,6 +454,7 @@ void processAltitude(pilota_t *pilota_quad, float altitude) {
 }
 
 int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
+	float delta =  0.001;
 	uint16_t altezza0, altezzaEnd;
 	int end = 0;
 	int i;
@@ -453,7 +483,7 @@ int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
 		break;
 	};
 
-	do {
+	while (end < 1) {
 		read_pilota();
 
 		if (pilota_quad->groundcontrol.state.status > MAV_STATE_STANDBY) {
@@ -461,13 +491,13 @@ int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
 			processHeading(pilota_quad, 0.0);
 
 			if(pilota_quad->sensori.gps.altitude < (altezzaEnd - 5)) {
-				pilota_quad->current.throttle_f = pilota_quad->last.throttle_f + 0.0001;
+				pilota_quad->current.throttle_f = pilota_quad->last.throttle_f + delta;
 			}
 			if (pilota_quad->sensori.gps.altitude > (altezzaEnd + 5)) {
-				pilota_quad->current.throttle_f = pilota_quad->last.throttle_f - 0.0001;
+				pilota_quad->current.throttle_f = pilota_quad->last.throttle_f - delta;
 			}
 
-			pilota_quad->current.throttle_f = pilota_quad->last.throttle_f + 0.0001;
+			pilota_quad->current.throttle_f = pilota_quad->last.throttle_f + delta;
 			pilota_quad->current.throttle_f = clamp(pilota_quad->current.throttle_f,0.0,1.0);
 
 			printf ("pilota_quad->current.throttle_f %f\n",pilota_quad->current.throttle_f);
@@ -497,10 +527,10 @@ int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
 			pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
 
 			// Yaw input
-			pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
-			pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
-			pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
-			pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+			pilota_quad->attuatori.value[0] -= pilota_quad->current.yaw_out; // CCW
+			pilota_quad->attuatori.value[1] += pilota_quad->current.yaw_out; // CW
+			pilota_quad->attuatori.value[2] -= pilota_quad->current.yaw_out; // CCW
+			pilota_quad->attuatori.value[3] += pilota_quad->current.yaw_out; // CW
 
 			// We need to clip motor output at out_max. When cipping a motors
 			// output we also need to compensate for the instability by
@@ -545,14 +575,17 @@ int take_off(pilota_t *pilota_quad, float alti, enum MAV_FRAME frame) {
 		write_pilota();
 		usleep(20000);
 
-		if((pilota_quad->sensori.gps.altitude > (altezzaEnd - 5)) && (pilota_quad->sensori.gps.altitude < (altezzaEnd + 5))) {
+		if(((pilota_quad->sensori.gps.altitude > (altezzaEnd - 5))) || //&&
+				//(pilota_quad->sensori.gps.altitude < (altezzaEnd + 5))) ||
+				(get_sys_state_fly()!=FLY_TAKE_OFF)) {
 			end = 1;
 		}
-	} while (end == 1);
+	}
 
 	return(0);
 }
 int landing(pilota_t *pilota_quad) {
+	float delta =  0.005;
 	uint16_t altezza100, altezzaEnd;
 	int end = 0;
 	int i;
@@ -568,7 +601,7 @@ int landing(pilota_t *pilota_quad) {
 			processAttitude(pilota_quad,0.0,0.0);
 			processHeading(pilota_quad,0.0);
 
-			pilota_quad->current.throttle_f = pilota_quad->last.throttle_f - 0.0001;
+			pilota_quad->current.throttle_f = pilota_quad->last.throttle_f - delta;
 			pilota_quad->current.throttle_f = clamp(pilota_quad->current.throttle_f,0.0,1.0);
 
 			printf ("pilota_quad->current.throttle_f %f\n",pilota_quad->current.throttle_f);
@@ -598,10 +631,10 @@ int landing(pilota_t *pilota_quad) {
 			pilota_quad->attuatori.value[3] = pilota_quad->current.throttle_out + pilota_quad->current.roll_out + pilota_quad->current.pitch_out; // BACK
 
 			// Yaw input
-			pilota_quad->attuatori.value[0] += pilota_quad->current.yaw_out; // CCW
-			pilota_quad->attuatori.value[1] -= pilota_quad->current.yaw_out; // CW
-			pilota_quad->attuatori.value[2] += pilota_quad->current.yaw_out; // CCW
-			pilota_quad->attuatori.value[3] -= pilota_quad->current.yaw_out; // CW
+			pilota_quad->attuatori.value[0] -= pilota_quad->current.yaw_out; // CCW
+			pilota_quad->attuatori.value[1] += pilota_quad->current.yaw_out; // CW
+			pilota_quad->attuatori.value[2] -= pilota_quad->current.yaw_out; // CCW
+			pilota_quad->attuatori.value[3] += pilota_quad->current.yaw_out; // CW
 
 			// We need to clip motor output at out_max. When cipping a motors
 			// output we also need to compensate for the instability by
@@ -647,10 +680,11 @@ int landing(pilota_t *pilota_quad) {
 		usleep(20000);
 
 		//		if((pilota_quad->sensori.gps.altitude > (altezzaEnd - 5)) && (pilota_quad->sensori.gps.altitude < (altezzaEnd + 5))) {
-		if(pilota_quad->current.throttle_f <= 0.0001) {
+		if((pilota_quad->current.throttle_f <= 0.0001) ||
+				(get_sys_state_fly()!=FLY_LANDING)) {
 			end = 1;
 		}
-	} while (end == 1);
+	} while (end < 1);
 
 	return(0);
 }

@@ -72,7 +72,7 @@ float pid_calculate(PID_t *pid, float sp, float val, float val_dot) {
 	 goto start
 	 */
 	uint64_t currentTime = microsSinceEpoch();
-	float dt = (currentTime - pid->previousTime) / 1000000.0;;
+	float dt = (currentTime - pid->previousTime) / 1000000.0;
 
 	float i, d;
 	pid->sp = sp;
@@ -111,3 +111,9 @@ float pid_calculate(PID_t *pid, float sp, float val, float val_dot) {
 
 	return ((error * pid->kp) + (i * pid->ki) + (d * pid->kd));
 }
+
+
+void set_pid_saturated(PID_t *pid) {
+	pid->saturated = 1;
+}
+
