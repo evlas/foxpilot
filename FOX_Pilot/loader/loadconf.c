@@ -92,10 +92,9 @@ int load_configuration(load_data_struct_t *load_data_struct) {
 			}
 #endif
 		}
+		fclose(fp);
 	}
 	memcpy(load_data_struct,&loaddata, sizeof(load_data_struct_t));
-
-	fclose(fp);
 
 	return(0);
 }

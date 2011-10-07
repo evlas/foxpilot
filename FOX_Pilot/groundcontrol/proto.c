@@ -172,7 +172,7 @@ int handle_message(uint8_t *buf, int dim) {
 
 		set_drop_rate(status.packet_rx_drop_count, status.packet_rx_success_count);
 
-		printf("msg.msgid %d\n",msg.msgid);
+		//printf("msg.msgid %d\n",msg.msgid);
 
 		set_waypoint_current_partner_sysid(msg.sysid);
 		set_waypoint_current_partner_compid(msg.compid);
@@ -770,16 +770,17 @@ int handle_action(mavlink_message_t msg) {
 		}
 		break;
 	case MAV_ACTION_EMCY_KILL:
-		if ((get_sys_state_mode() == MAV_MODE_LOCKED) &&
-				(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
-				(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
-			if (set_sys_state_status(MAV_STATE_EMERGENCY)) {
-				set_sys_state_nav_mode(MAV_NAV_GROUNDED);
+//		if ((get_sys_state_mode() == MAV_MODE_LOCKED) &&
+//				(get_sys_state_status() > MAV_STATE_CALIBRATING) &&
+//				(get_sys_state_nav_mode() == MAV_NAV_GROUNDED)) {
+//			if (set_sys_state_status(MAV_STATE_EMERGENCY)) {
+//				set_sys_state_nav_mode(MAV_NAV_GROUNDED);
+				uav_poweroff();
 				ok_ko=1;
-			} else {
-				send_mav_statustext(0, "EMCY_KILL Impossibile", 21);
-			}
-		}
+//			} else {
+//				send_mav_statustext(0, "EMCY_KILL Impossibile", 21);
+//			}
+//		}
 		break;
 	case MAV_ACTION_CONFIRM_KILL:
 		if (get_sys_state_nav_mode() == MAV_NAV_GROUNDED) {
@@ -792,7 +793,7 @@ int handle_action(mavlink_message_t msg) {
 		break;
 	case MAV_ACTION_CONTINUE:
 		if (get_sys_state_nav_mode() == MAV_NAV_HOLD) {
-			//hold position
+
 			set_sys_state_nav_mode_prev();
 			ok_ko=1;
 		} else {
@@ -816,7 +817,7 @@ int handle_action(mavlink_message_t msg) {
 		break;
 	case MAV_ACTION_HALT:
 		if (get_sys_state_nav_mode() > MAV_NAV_GROUNDED) {
-			//hold position
+
 			set_sys_state_nav_mode(MAV_NAV_HOLD);
 			ok_ko=1;
 		} else {
@@ -826,6 +827,7 @@ int handle_action(mavlink_message_t msg) {
 	case MAV_ACTION_SHUTDOWN:
 		if (get_sys_state_nav_mode() == MAV_NAV_GROUNDED) {
 			if (set_sys_state_status(MAV_STATE_POWEROFF)) {
+				uav_poweroff();
 				ok_ko=1;
 			} else {
 				send_mav_statustext(0, "SHUTDOWN Impossibile", 20);
@@ -1675,7 +1677,7 @@ void param_read_all(void) {
 
 	read_groundcontrol(&parametri);
 
-	if ((fp = fopen("params.txt", "r")) != NULL) {
+	if ((fp = fopen(PARAM_FILE, "r")) != NULL) {
 		res = fread(&(parametri.param), sizeof(float) * ONBOARD_PARAM_COUNT, 1, fp);
 		res = fread(&(parametri.param_name), sizeof(char) * ONBOARD_PARAM_COUNT * ONBOARD_PARAM_NAME_LENGTH, 1, fp);
 
@@ -1693,7 +1695,7 @@ void param_write_all(void) {
 
 	read_groundcontrol(&parametri);
 
-	if ((fp = fopen("params.txt", "w")) != NULL) {
+	if ((fp = fopen(PARAM_FILE, "w")) != NULL) {
 		res = fwrite(&(parametri.param), sizeof(float) * ONBOARD_PARAM_COUNT, 1, fp);
 		res = fwrite(&(parametri.param_name), sizeof(char) * ONBOARD_PARAM_COUNT * ONBOARD_PARAM_NAME_LENGTH, 1, fp);
 
@@ -2508,3 +2510,34 @@ uint16_t get_avg_cpu_load(void) {
 	return(res);
 }
 
+void uav_poweroff(void) {
+	int i;
+	attuatori_t att;
+
+	get_attuatori(&att);
+
+	for (i=0;i<NUMS_ATTUATORI;i++) {
+		att.value[i] = att.zero[i];
+	}
+
+	write_attuatori(&att);
+	set_sys_state_mode(MAV_MODE_LOCKED);
+
+	system("sudo poweroff");
+}
+
+void uav_reboot(void) {
+	int i;
+	attuatori_t att;
+
+	get_attuatori(&att);
+
+	for (i=0;i<NUMS_ATTUATORI;i++) {
+		att.value[i] = att.zero[i];
+	}
+
+	write_attuatori(&att);
+	set_sys_state_mode(MAV_MODE_LOCKED);
+
+	system("sudo reboot");
+}
