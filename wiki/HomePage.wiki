@@ -1,4 +1,4 @@
-http://www.acmesystems.it/www/FOXG20/foxg20_parts.jpg
+http://foxpilot.googlecode.com/svn/wiki/images/foxg20.jpg
 
 = Introduction =
 
